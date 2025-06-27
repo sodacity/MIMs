@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiMs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        #sidebar-resize-handle {
+            position: absolute;
+            top: 0;
+            right: -2.5px;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 10;
+        }
+        #notification {
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .editor {
+            flex-grow: 1; /* Allow editor to take up space */
+            overflow-y: auto;
+            outline: none;
+            transition: background-color 0.3s;
+        }
+        .editor img { max-width: 100%; height: auto; border-radius: 8px; }
+        .editor ul, .editor ol { padding-left: 2rem; }
+        .editor ul { list-style: disc; }
+        .editor ol { list-style: decimal; }
+        .toolbar-btn {
+            background-color: transparent; border: 1px solid #4a5568; border-radius: 4px;
+            color: white; padding: 0.25rem 0.75rem; transition: background-color 0.2s;
+            font-size: 1rem; width: 38px; height: 38px;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .toolbar-btn:hover { background-color: #4a5568; }
+        .toolbar-btn.active { background-color: #4A90E2; }
+        input[type="color"] { width: 38px; height: 38px; border: 1px solid #4a5568; border-radius: 4px; padding: 4px; background-color: #2d3748; cursor: pointer; }
+        .modal { transition: opacity 0.3s ease-out, transform 0.3s ease-out, background-color 0.3s; }
+        #notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+        .note-card {
+            border: 1px solid #2d3748;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .note-card:hover { transform: translateY(-5px); }
+        .note-card-title { font-weight: bold; margin-bottom: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .note-card-content { flex-grow: 1; overflow: hidden; font-size: 0.9rem; }
+        .note-card-content * { color: inherit !important; }
+        .sidebar-icon-btn { color: #9ca3af; transition: color 0.2s; }
+        .sidebar-icon-btn:hover { color: white; }
+        #edit-note-pane, #new-note-pane {
+            position: fixed;
+            z-index: 50;
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), background-color 0.3s;
+        }
+        #edit-note-pane {
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            transform: translateX(100%);
+        }
+        #side-pane-resize-handle {
+            position: absolute;
+            top: 0;
+            left: -2.5px;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 10;
+        }
+        #edit-note-pane.is-open {
+            transform: translateX(0);
+        }
+         #new-note-pane {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transform: translateY(100%);
+            height: 90vh;
+        }
+        #new-note-pane.is-open {
+            transform: translateY(0);
+        }
+        .text-input-field {
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .recent-notes-container {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 1rem;
+        }
+        .recent-note-card {
+            flex: 0 0 220px;
+            height: 150px;
+        }
+        .search-container {
+            position: relative;
+        }
+        .search-container svg {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+        .search-container input {
+            padding-left: 2.5rem;
+        }
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+        }
+         @media (min-width: 768px) {
+            #edit-note-pane {
+                width: 50%;
+                max-width: 800px;
+            }
+            #new-note-pane {
+                 height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar bg-gray-800 p-4 flex flex-col fixed h-full z-40 w-64 md:w-auto md:relative md:translate-x-0 transform -translate-x-full">
+        <div id="sidebar-resize-handle" class="hidden md:block"></div>
+        <div class="flex justify-between items-center mb-4">
+            <h1 id="app-title" class="text-2xl font-bold">Notes</h1>
+            <div class="flex items-center">
+                 <button id="new-note-btn" class="sidebar-icon-btn" title="New Note">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+                <button id="calendar-btn" class="sidebar-icon-btn ml-2" title="Calendar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </button>
+                 <button id="settings-btn" class="sidebar-icon-btn ml-2" title="Settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </div>
+        </div>
+        <div class="flex flex-col flex-grow overflow-hidden">
+             <div class="mb-4 search-container">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="filter" placeholder="Search" class="text-input-field w-full p-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+             <div class="mb-4">
+                 <a href="#" id="dashboard-link" class="flex items-center p-2 rounded hover:bg-gray-700 font-semibold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    Home
+                 </a>
+                 <a href="#" id="all-notes-link" class="flex items-center p-2 rounded hover:bg-gray-700 font-semibold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Notes
+                 </a>
+            </div>
+            <div class="flex-grow overflow-y-auto">
+                <div id="labels-container"></div>
+                <details class="mt-4" id="archive-section">
+                    <summary class="cursor-pointer text-lg font-semibold">Archived</summary>
+                    <div id="archive-list" class="pt-2"></div>
+                </details>
+            </div>
+            <div id="sidebar-footer" class="text-center text-xs text-gray-500 mt-auto pt-4"></div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main id="main-content" class="flex-grow p-6 overflow-y-auto relative">
+         <button id="mobile-menu-btn" class="md:hidden fixed top-4 left-4 z-50 p-2 bg-gray-900 bg-opacity-50 rounded-full text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+
+        <!-- Dashboard View -->
+        <div id="dashboard-view">
+            <div id="greeting-banner" class="p-6 rounded-lg mb-6 text-center">
+                <h1 id="greeting-text" class="text-3xl md:text-4xl font-bold"></h1>
+                <p id="time-display" class="text-md md:text-lg text-gray-300"></p>
+            </div>
+            <div>
+                <h2 class="text-xl font-semibold mb-4">Recent Notes</h2>
+                <div id="recent-notes-container" class="recent-notes-container"></div>
+            </div>
+             <hr class="my-8 border-gray-400">
+             <div>
+                 <h2 class="text-xl font-semibold mb-4">Shortcuts</h2>
+                 <div id="shortcuts-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+             </div>
+        </div>
+        <!-- Notes Grid View -->
+        <div id="notes-view" class="hidden">
+            <div id="notes-grid"></div>
+        </div>
+    </main>
+
+    <!-- Modal Overlay -->
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-30 transition-opacity duration-300"></div>
+
+    <!-- Welcome Modal -->
+    <div id="welcome-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6 text-center">
+            <h2 class="text-3xl font-bold mb-4">Welcome to MiMs!</h2>
+            <p class="text-lg mb-6">Your simple, secure note-taking application.</p>
+            <div class="text-left space-y-4 mb-8">
+                <p><strong><span class="text-blue-400">Your Personal Interpreter:</span></strong> MiMs helps you capture, organize, and interpret your thoughts and ideas effortlessly.</p>
+                <p><strong><span class="text-green-400">Secure & Private:</span></strong> Your data is stored locally on your device, not on a server. You have full control.</p>
+                <p><strong><span class="text-yellow-400">Export Your Data:</span></strong> You can export all your notes and settings into a secure `.mim` file at any time.</p>
+            </div>
+            <button id="close-welcome-modal" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full">Get Started</button>
+        </div>
+    </div>
+
+    <!-- Clear Storage Confirmation Modal -->
+    <div id="confirm-clear-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-red-900 bg-opacity-90 rounded-lg shadow-xl w-full max-w-md p-6 text-center border border-red-500">
+            <h2 class="text-2xl font-bold mb-4 text-white">Are you sure?</h2>
+            <p class="text-white mb-4">This action is irreversible and will delete all your notes, settings, and shortcuts.</p>
+            <p class="text-gray-300 mb-4">To confirm, please type <strong class="text-red-400 font-mono">DELETE</strong> into the box below.</p>
+            <input type="text" id="delete-confirmation-input" class="text-input-field w-full p-2 rounded mb-6 text-center" placeholder="Type DELETE here">
+            <div class="flex justify-end gap-4">
+                <button id="cancel-clear-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                <button id="confirm-clear-action-btn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded cursor-not-allowed" disabled>Confirm Deletion</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Note Side Pane -->
+    <div id="edit-note-pane" class="bg-gray-800 shadow-2xl flex flex-col relative">
+        <div id="side-pane-resize-handle" class="hidden md:block"></div>
+         <div class="p-4 md:p-6 flex flex-col h-full w-full overflow-hidden">
+            <input type="text" id="edit-note-title" placeholder="Note Title" class="text-input-field text-2xl font-bold p-3 rounded-md focus:outline-none w-full text-white placeholder-gray-300 mb-4 flex-shrink-0">
+            <div id="edit-toolbar" class="flex items-center gap-1 p-2 bg-gray-900 bg-opacity-50 rounded-t-lg border-b border-gray-600 flex-wrap flex-shrink-0">
+                <button class="toolbar-btn" data-command="bold" title="Bold"><b>B</b></button>
+                <button class="toolbar-btn" data-command="italic" title="Italic"><i>I</i></button>
+                <button class="toolbar-btn" data-command="underline" title="Underline"><u>U</u></button>
+                <input type="color" class="font-color" data-command="foreColor" title="Font Color">
+                 <button class="toolbar-btn" data-command="insertImage" title="Insert Image"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></button>
+                <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
+                <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
+                <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
+            </div>
+            <div id="edit-note-editor" contenteditable="true" class="editor w-full p-4 rounded-b-lg text-white"></div>
+            <div class="mt-auto pt-4 flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <label for="edit-note-label" class="font-semibold">Tag:</label>
+                    <input type="text" id="edit-note-label" list="labels-datalist" class="text-input-field p-2 rounded text-white w-1/3 bg-white bg-opacity-20">
+                    <label for="edit-note-card-color-input" class="font-semibold" title="Note Card Color">🎨</label>
+                    <input type="color" id="edit-note-card-color-input">
+                </div>
+                <div class="flex justify-end gap-2 mt-6 items-center">
+                    <button id="archive-note" class="action-btn text-white" title="Archive">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    </button>
+                     <button id="delete-note" class="action-btn bg-red-500 hover:bg-red-600 text-white" title="Delete">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                    <button id="cancel-edit-note" class="action-btn bg-gray-600 hover:bg-gray-700 text-white" title="Cancel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    <button id="save-edit-note" class="action-btn bg-green-500 hover:bg-green-600 text-white" title="Save">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Note Bottom Pane -->
+    <div id="new-note-pane" class="bg-gray-800 shadow-2xl flex flex-col relative">
+        <div id="bottom-resize-handle" class="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-2 bg-gray-600 rounded-full cursor-ns-resize hidden md:block"></div>
+        <div class="p-4 md:p-6 pt-8 flex flex-col h-full w-full overflow-hidden">
+            <input type="text" id="new-note-title" placeholder="Note Title" class="text-input-field text-2xl font-bold p-3 rounded-md focus:outline-none w-full text-white placeholder-gray-300 mb-4">
+            <div id="new-note-toolbar" class="flex items-center gap-1 p-2 bg-gray-900 bg-opacity-50 rounded-t-lg border-b border-gray-600 flex-wrap">
+                 <button class="toolbar-btn" data-command="bold" title="Bold"><b>B</b></button>
+                <button class="toolbar-btn" data-command="italic" title="Italic"><i>I</i></button>
+                <button class="toolbar-btn" data-command="underline" title="Underline"><u>U</u></button>
+                <input type="color" class="font-color" data-command="foreColor" title="Font Color">
+                 <button class="toolbar-btn" data-command="insertImage" title="Insert Image"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></button>
+                <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
+                 <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
+                <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
+            </div>
+            <div id="new-note-editor" contenteditable="true" class="editor w-full p-4 rounded-b-lg text-white"></div>
+            <div class="mt-auto pt-4">
+                 <div class="flex items-center gap-4">
+                    <label for="new-note-label" class="font-semibold">Tag:</label>
+                    <input type="text" id="new-note-label" list="labels-datalist" class="text-input-field p-2 rounded text-white w-1/3 bg-white bg-opacity-20">
+                    <label for="new-note-card-color-input" class="font-semibold" title="Note Card Color">🎨</label>
+                    <input type="color" id="new-note-card-color-input">
+                </div>
+                <div class="flex justify-end gap-2 mt-6 items-center">
+                    <button id="cancel-new-note" class="action-btn bg-gray-600 hover:bg-gray-700 text-white" title="Cancel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    <button id="save-new-note" class="action-btn bg-green-500 hover:bg-green-600 text-white" title="Create Note">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="calendar-modal" class="hidden modal fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-xl z-50 w-11/12 max-w-lg opacity-0 scale-95">
+         <div class="p-6">
+            <div class="flex justify-between items-center mb-4"><button id="prev-month" class="p-2 rounded-full hover:bg-gray-700">&lt;</button><h2 id="month-year" class="text-xl font-bold"></h2><button id="next-month" class="p-2 rounded-full hover:bg-gray-700">&gt;</button></div>
+            <div class="grid grid-cols-7 gap-2 text-center" id="calendar-grid"></div>
+            <div class="mt-4 max-h-48 overflow-y-auto" id="calendar-notes-list"></div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="hidden modal fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-xl z-50 w-11/12 max-w-md opacity-0 scale-95">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                 <h2 class="text-2xl font-bold">Settings</h2>
+                 <div class="flex gap-2">
+                     <button id="import-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Import</button>
+                     <button id="export-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Export</button>
+                 </div>
+            </div>
+            <div class="space-y-4">
+                <div><label for="user-name-setting" class="block mb-2 font-semibold">User Name</label><input type="text" id="user-name-setting" class="text-input-field w-full p-2 rounded text-white"></div>
+                <div><label for="title-setting" class="block mb-2 font-semibold">App Title</label><input type="text" id="title-setting" class="text-input-field w-full p-2 rounded text-white"></div>
+                 <div><label for="footer-text-setting" class="block mb-2 font-semibold">Footer Text</label><input type="text" id="footer-text-setting" class="text-input-field w-full p-2 rounded text-white"></div>
+                <div class="flex justify-between items-center"><label for="bg-color-setting" class="font-semibold">Background Color</label><input type="color" id="bg-color-setting"></div>
+                <div class="flex justify-between items-center"><label for="sidebar-color-setting" class="font-semibold">Sidebar Color</label><input type="color" id="sidebar-color-setting"></div>
+                <div class="flex justify-between items-center"><label for="font-color-setting" class="font-semibold">App Font Color</label><input type="color" id="font-color-setting"></div>
+                <div class="flex justify-between items-center"><label for="note-card-color-setting" class="font-semibold">Default Note Card Color</label><input type="color" id="note-card-color-setting"></div>
+                 <div class="flex justify-between items-center"><label for="note-card-opacity-setting" class="font-semibold">Note Card Transparency</label><input type="range" id="note-card-opacity-setting" min="0.1" max="1" step="0.05" class="w-1/2"></div>
+                <div class="flex justify-between items-center"><label for="modal-bg-color-setting" class="font-semibold">Pop Up Windows</label><input type="color" id="modal-bg-color-setting"></div>
+                <div class="flex justify-between items-center"><label for="modal-opacity-setting" class="font-semibold">Pop Up Transparency</label><input type="range" id="modal-opacity-setting" min="0.5" max="1" step="0.05" class="w-1/2"></div>
+                <div class="flex justify-between items-center"><label for="text-input-bg-color-setting" class="font-semibold">Text Input Fields</label><input type="color" id="text-input-bg-color-setting"></div>
+                <div class="flex justify-between items-center"><label for="text-input-font-color-setting" class="font-semibold">Text Input Font Color</label><input type="color" id="text-input-font-color-setting"></div>
+                 <hr>
+                <h3 class="text-lg font-semibold">Manage Shortcuts</h3>
+                <div id="shortcuts-manager" class="space-y-2"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="new-shortcut-name" placeholder="Shortcut Name" class="text-input-field p-2 rounded w-1/2">
+                    <input type="text" id="new-shortcut-url" placeholder="Shortcut URL" class="text-input-field p-2 rounded w-1/2">
+                    <select id="new-shortcut-icon" class="text-input-field p-2 rounded bg-gray-700 text-white"></select>
+                    <button id="add-shortcut-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded">Add</button>
+                </div>
+                <hr>
+                <div>
+                     <button id="clear-storage-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Clear All Local Data</button>
+                </div>
+            </div>
+            <div class="flex justify-end mt-8"><button id="close-settings" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Close</button></div>
+        </div>
+    </div>
+
+    <div id="email-modal" class="hidden modal fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-xl z-50 w-11/12 max-w-2xl opacity-0 scale-95">
+        <div class="p-6 flex flex-col h-full">
+            <h2 class="text-2xl font-bold mb-4">Compose Email</h2>
+            <div class="space-y-4 flex-grow flex flex-col">
+                <input id="email-to" type="email" placeholder="To:" class="text-input-field p-2 rounded w-full">
+                <input id="email-subject" type="text" placeholder="Subject" class="text-input-field p-2 rounded w-full">
+                <textarea id="email-body" placeholder="Email body..." class="text-input-field p-2 rounded w-full flex-grow min-h-[150px]"></textarea>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="w-full md:w-1/2">
+                        <h3 class="font-semibold mb-2">Canned Responses</h3>
+                        <div id="canned-responses-list" class="max-h-24 overflow-y-auto bg-gray-700 rounded p-2"></div>
+                    </div>
+                    <div class="w-full md:w-1/2">
+                        <h3 class="font-semibold mb-2">Add New Response</h3>
+                        <input type="text" id="new-canned-response-name" placeholder="Response Name" class="text-input-field p-2 rounded w-full mb-2">
+                        <textarea id="new-canned-response-text" placeholder="Response Text..." class="text-input-field p-2 rounded w-full h-16 mb-2"></textarea>
+                        <button id="add-canned-response" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded">Add</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button id="cancel-email" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                <button id="send-email" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Send</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Notification Popup -->
+    <div id="notification" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg hidden opacity-0 transform translate-y-2"></div>
+    <datalist id="labels-datalist"></datalist>
+    <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+    <input type="file" id="import-file-input" class="hidden" accept=".mim">
+
+    <script>
+        // --- DOM Elements ---
+        const DOMElements = {
+            sidebar: document.getElementById('sidebar'),
+            mobileMenuBtn: document.getElementById('mobile-menu-btn'),
+            sidebarFooter: document.getElementById('sidebar-footer'),
+            sidebarResizeHandle: document.getElementById('sidebar-resize-handle'),
+            mainContent: document.getElementById('main-content'),
+            appTitle: document.getElementById('app-title'),
+            archiveList: document.getElementById('archive-list'),
+            labelsContainer: document.getElementById('labels-container'),
+            notesGrid: document.getElementById('notes-grid'),
+            filterInput: document.getElementById('filter'),
+            notification: document.getElementById('notification'),
+            body: document.querySelector('body'),
+            archiveSection: document.getElementById('archive-section'),
+            modalOverlay: document.getElementById('modal-overlay'),
+            welcomeModal: document.getElementById('welcome-modal'),
+            closeWelcomeModalBtn: document.getElementById('close-welcome-modal'),
+            confirmClearModal: document.getElementById('confirm-clear-modal'),
+            deleteConfirmationInput: document.getElementById('delete-confirmation-input'),
+            cancelClearBtn: document.getElementById('cancel-clear-btn'),
+            confirmClearActionBtn: document.getElementById('confirm-clear-action-btn'),
+            // Edit Note Pane
+            editNotePane: document.getElementById('edit-note-pane'),
+            sidePaneResizeHandle: document.getElementById('side-pane-resize-handle'),
+            editNoteTitleInput: document.getElementById('edit-note-title'),
+            editNoteEditor: document.getElementById('edit-note-editor'),
+            editToolbar: document.getElementById('edit-toolbar'),
+            editNoteLabelInput: document.getElementById('edit-note-label'),
+            editNoteCardColorInput: document.getElementById('edit-note-card-color-input'),
+            saveEditNoteBtn: document.getElementById('save-edit-note'),
+            cancelEditNoteBtn: document.getElementById('cancel-edit-note'),
+            deleteNoteBtn: document.getElementById('delete-note'),
+            archiveNoteBtn: document.getElementById('archive-note'),
+            // New Note Pane
+            newNoteBtn: document.getElementById('new-note-btn'),
+            newNotePane: document.getElementById('new-note-pane'),
+            newNoteTitleInput: document.getElementById('new-note-title'),
+            newNoteEditor: document.getElementById('new-note-editor'),
+            newNoteToolbar: document.getElementById('new-note-toolbar'),
+            bottomResizeHandle: document.getElementById('bottom-resize-handle'),
+            newNoteLabelInput: document.getElementById('new-note-label'),
+            newNoteCardColorInput: document.getElementById('new-note-card-color-input'),
+            saveNewNoteBtn: document.getElementById('save-new-note'),
+            cancelNewNoteBtn: document.getElementById('cancel-new-note'),
+            // Calendar & Settings
+            calendarBtn: document.getElementById('calendar-btn'),
+            calendarModal: document.getElementById('calendar-modal'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsModal: document.getElementById('settings-modal'),
+            labelsDatalist: document.getElementById('labels-datalist'),
+             // Email Modal
+            emailModal: document.getElementById('email-modal'),
+            emailTo: document.getElementById('email-to'),
+            emailSubject: document.getElementById('email-subject'),
+            emailBody: document.getElementById('email-body'),
+            cannedResponsesList: document.getElementById('canned-responses-list'),
+            newCannedResponseNameInput: document.getElementById('new-canned-response-name'),
+            newCannedResponseTextInput: document.getElementById('new-canned-response-text'),
+            addCannedResponseBtn: document.getElementById('add-canned-response'),
+            sendEmailBtn: document.getElementById('send-email'),
+            cancelEmailBtn: document.getElementById('cancel-email'),
+            // Import/Export & Image
+            importFileInput: document.getElementById('import-file-input'),
+            imageUploadInput: document.getElementById('image-upload-input'),
+            clearStorageBtn: document.getElementById('clear-storage-btn'),
+             // Dashboard
+            dashboardView: document.getElementById('dashboard-view'),
+            notesView: document.getElementById('notes-view'),
+            dashboardLink: document.getElementById('dashboard-link'),
+            allNotesLink: document.getElementById('all-notes-link'),
+            greetingBanner: document.getElementById('greeting-banner'),
+            greetingText: document.getElementById('greeting-text'),
+            timeDisplay: document.getElementById('time-display'),
+            recentNotesContainer: document.getElementById('recent-notes-container'),
+            shortcutsGrid: document.getElementById('shortcuts-grid'),
+        };
+
+        // --- App State ---
+        let state = { notes: [], settings: {}, cannedResponses: [], currentNoteId: null, activeEditor: null, currentDate: new Date() };
+        const defaultSettings = {
+            title: 'Notes', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
+            noteCardColor: '#000000', noteCardOpacity: 0.7, modalBgColor: '#000000',
+            textInputBgColor: '#ffffff', textInputFontColor: '#000000',
+            footerText: 'MiMs 1.0', modalOpacity: 0.95, userName: 'User', customLinks: []
+        };
+
+        // --- Data Management ---
+        function loadData() {
+            const data = DOMElements.body.dataset.exportedData;
+            if (data) {
+                try {
+                    const parsedData = JSON.parse(data);
+                    state.notes = parsedData.notes || [];
+                    state.settings = { ...defaultSettings, ...(parsedData.settings || {}) };
+                    state.cannedResponses = parsedData.cannedResponses || [];
+                } catch (e) { console.error("Could not parse exported data:", e); loadFromLocalStorage(); }
+            } else { loadFromLocalStorage(); }
+        }
+        function loadFromLocalStorage() {
+            state.notes = JSON.parse(localStorage.getItem('notes')) || [];
+            state.cannedResponses = JSON.parse(localStorage.getItem('cannedResponses')) || [];
+            const savedSettings = JSON.parse(localStorage.getItem('settings'));
+            state.settings = { ...defaultSettings, ...savedSettings };
+        }
+        function saveData() {
+            localStorage.setItem('notes', JSON.stringify(state.notes));
+            localStorage.setItem('settings', JSON.stringify(state.settings));
+            localStorage.setItem('cannedResponses', JSON.stringify(state.cannedResponses));
+            renderAll();
+        }
+
+        // --- Rendering & UI ---
+         function hexToRgba(hex, alpha) {
+            let r = 0, g = 0, b = 0;
+            if(!hex) return `rgba(0,0,0,${alpha})`;
+            if (hex.length == 4) {
+                r = "0x" + hex[1] + hex[1];
+                g = "0x" + hex[2] + hex[2];
+                b = "0x" + hex[3] + hex[3];
+            } else if (hex.length == 7) {
+                r = "0x" + hex[1] + hex[2];
+                g = "0x" + hex[3] + hex[4];
+                b = "0x" + hex[5] + hex[6];
+            }
+            return `rgba(${+r},${+g},${+b},${alpha})`;
+        }
+
+        function applySettings() {
+            const { settings } = state;
+            const settingsModal = DOMElements.settingsModal;
+            DOMElements.appTitle.innerText = settings.title;
+            DOMElements.body.style.backgroundColor = settings.bgColor;
+            DOMElements.sidebar.style.backgroundColor = settings.sidebarColor;
+            DOMElements.body.style.color = settings.fontColor;
+            DOMElements.sidebarFooter.innerText = settings.footerText;
+
+            const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
+            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal].forEach(el => {
+                if (el) el.style.backgroundColor = rgbaModalBg;
+            });
+
+            document.querySelectorAll('.text-input-field').forEach(el => {
+                el.style.backgroundColor = settings.textInputBgColor;
+                el.style.color = settings.textInputFontColor;
+                if(el.id === 'edit-note-label' || el.id === 'new-note-label') {
+                    el.style.backgroundColor = hexToRgba(settings.textInputBgColor, 0.75);
+                }
+            });
+
+            if(settingsModal) {
+                settingsModal.querySelector('#user-name-setting').value = settings.userName;
+                settingsModal.querySelector('#title-setting').value = settings.title;
+                settingsModal.querySelector('#footer-text-setting').value = settings.footerText;
+                settingsModal.querySelector('#bg-color-setting').value = settings.bgColor;
+                settingsModal.querySelector('#sidebar-color-setting').value = settings.sidebarColor;
+                settingsModal.querySelector('#font-color-setting').value = settings.fontColor;
+                settingsModal.querySelector('#note-card-color-setting').value = settings.noteCardColor;
+                settingsModal.querySelector('#note-card-opacity-setting').value = settings.noteCardOpacity;
+                settingsModal.querySelector('#modal-bg-color-setting').value = settings.modalBgColor;
+                settingsModal.querySelector('#modal-opacity-setting').value = settings.modalOpacity;
+                settingsModal.querySelector('#text-input-bg-color-setting').value = settings.textInputBgColor;
+                settingsModal.querySelector('#text-input-font-color-setting').value = settings.textInputFontColor;
+            }
+        }
+
+        function renderAll() {
+            renderDashboard();
+            renderNoteLists();
+            renderNotesGrid();
+        }
+
+        function renderDashboard() {
+            // Greeting
+            const hour = new Date().getHours();
+            const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+            DOMElements.greetingText.textContent = `${greeting}, ${state.settings.userName}!`;
+
+            // Recent Notes
+            const recentNotes = state.notes.filter(n => !n.archived).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5);
+            DOMElements.recentNotesContainer.innerHTML = '';
+            recentNotes.forEach(note => {
+                const card = document.createElement('div');
+                card.className = 'note-card recent-note-card';
+                card.dataset.id = note.id;
+                const baseColor = note.color || state.settings.noteCardColor;
+                const opacity = state.settings.noteCardOpacity || 1;
+                card.style.backgroundColor = hexToRgba(baseColor, opacity);
+                card.innerHTML = `<div class="note-card-title">${note.title}</div><div class="note-card-content">${note.content}</div>`;
+                card.addEventListener('click', () => openEditPane(note.id));
+                DOMElements.recentNotesContainer.appendChild(card);
+            });
+
+            // Shortcuts
+            renderShortcuts();
+        }
+
+        function getFilteredNotes() {
+            const filterText = DOMElements.filterInput.value.toLowerCase();
+            if (!filterText) return state.notes;
+            return state.notes.filter(note => {
+                const titleMatch = (note.title || '').toLowerCase().includes(filterText);
+                const contentMatch = (note.content || '').toLowerCase().includes(filterText);
+                const labelMatch = (note.label || '').toLowerCase().includes(filterText);
+                return titleMatch || contentMatch || labelMatch;
+            });
+        }
+
+        function renderNoteLists() {
+            DOMElements.labelsContainer.innerHTML = '';
+            DOMElements.archiveList.innerHTML = '';
+
+            const filteredNotes = getFilteredNotes();
+            const labels = [...new Set(filteredNotes.filter(n => n.label && !n.archived).map(n => n.label))];
+
+            const notesByLabel = {};
+            labels.forEach(label => notesByLabel[label] = []);
+            const uncategorizedNotes = [];
+
+            filteredNotes.forEach(note => {
+                if (note.archived) return;
+                if (note.label && notesByLabel[note.label]) {
+                    notesByLabel[note.label].push(note);
+                } else { uncategorizedNotes.push(note); }
+            });
+
+            const createLabelGroup = (title, notes) => {
+                if (notes.length === 0) return '';
+                const notesHTML = notes.map(note => createNoteListItem(note).outerHTML).join('');
+                return `<details open class="mt-2">
+                            <summary class="cursor-pointer font-semibold p-1 rounded hover:bg-gray-700">${title}</summary>
+                            <div class="pl-2 border-l-2 border-gray-600">${notesHTML}</div>
+                        </details>`;
+            };
+
+            DOMElements.labelsContainer.innerHTML += createLabelGroup('Active Notes', uncategorizedNotes);
+            labels.sort().forEach(label => {
+                 DOMElements.labelsContainer.innerHTML += createLabelGroup(label, notesByLabel[label]);
+            });
+
+            filteredNotes.filter(n => n.archived).forEach(note => DOMElements.archiveList.appendChild(createNoteListItem(note)));
+            DOMElements.archiveSection.style.display = DOMElements.archiveList.children.length > 0 ? 'block' : 'none';
+        }
+
+        function createNoteListItem(note) {
+            const noteEl = document.createElement('div');
+            noteEl.className = 'p-2 rounded cursor-pointer truncate hover:bg-gray-600';
+            noteEl.dataset.id = note.id;
+            noteEl.innerText = note.title || "Untitled Note";
+            noteEl.addEventListener('click', (e) => { e.stopPropagation(); openEditPane(note.id) });
+            return noteEl;
+        }
+
+        function renderNotesGrid() {
+            DOMElements.notesGrid.innerHTML = '';
+            const unarchivedNotes = state.notes.filter(n => !n.archived);
+            unarchivedNotes.forEach(note => {
+                const card = document.createElement('div');
+                card.className = 'note-card';
+                card.dataset.id = note.id;
+                const baseColor = note.color || state.settings.noteCardColor;
+                const opacity = state.settings.noteCardOpacity || 1;
+                card.style.backgroundColor = hexToRgba(baseColor, opacity);
+                card.innerHTML = `<div class="note-card-title">${note.title}</div><div class="note-card-content">${note.content}</div>`;
+                card.addEventListener('click', () => openEditPane(note.id));
+                DOMElements.notesGrid.appendChild(card);
+            });
+             new Sortable(DOMElements.notesGrid, { animation: 150, ghostClass: 'sortable-ghost' });
+        }
+        
+        function checkFirstVisit() {
+            if (!localStorage.getItem('hasSeenWelcome')) {
+                openModal(DOMElements.welcomeModal);
+            }
+        }
+
+        function init() {
+            loadData();
+            applySettings();
+            renderAll();
+            addEventListeners();
+            setupToolbar(DOMElements.newNoteToolbar, DOMElements.newNoteEditor);
+            setupToolbar(DOMElements.editToolbar, DOMElements.editNoteEditor);
+            setInterval(updateTime, 1000);
+            updateTime();
+            checkFirstVisit();
+        }
+
+        function updateTime() {
+            const now = new Date();
+            DOMElements.timeDisplay.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        function makeResizable(element, handle, direction) {
+            if(!handle || !element) return;
+            handle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startWidth = element.offsetWidth;
+                const startHeight = element.offsetHeight;
+
+                const doDrag = (moveEvent) => {
+                    if (direction === 'horizontal') {
+                        const deltaX = moveEvent.clientX - startX;
+                        let newWidth = startWidth + (handle === DOMElements.sidePaneResizeHandle ? -deltaX : deltaX);
+                        element.style.width = `${newWidth}px`;
+                    } else { // vertical
+                        const deltaY = moveEvent.clientY - startY;
+                        element.style.height = `${startHeight - deltaY}px`;
+                    }
+                };
+
+                const stopDrag = () => {
+                    document.removeEventListener('mousemove', doDrag);
+                    document.removeEventListener('mouseup', stopDrag);
+                };
+
+                document.addEventListener('mousemove', doDrag);
+                document.addEventListener('mouseup', stopDrag);
+            });
+        }
+
+        function addEventListeners() {
+            DOMElements.mobileMenuBtn.addEventListener('click', () => {
+                DOMElements.sidebar.classList.toggle('-translate-x-full');
+                DOMElements.modalOverlay.classList.toggle('hidden');
+                DOMElements.modalOverlay.classList.toggle('opacity-0');
+            });
+            
+            DOMElements.closeWelcomeModalBtn.addEventListener('click', () => {
+                closeModal(DOMElements.welcomeModal);
+                localStorage.setItem('hasSeenWelcome', 'true');
+            });
+
+            DOMElements.newNoteBtn.addEventListener('click', openNewNotePane);
+            DOMElements.cancelNewNoteBtn.addEventListener('click', closeNewNotePane);
+            DOMElements.saveNewNoteBtn.addEventListener('click', handleSaveNewNote);
+
+            DOMElements.cancelEditNoteBtn.addEventListener('click', closeEditPane);
+            DOMElements.saveEditNoteBtn.addEventListener('click', handleSaveEdit);
+            DOMElements.deleteNoteBtn.addEventListener('click', handleDeleteNote);
+            DOMElements.archiveNoteBtn.addEventListener('click', handleArchiveNote);
+
+            DOMElements.filterInput.addEventListener('input', renderNoteLists);
+            DOMElements.modalOverlay.addEventListener('click', closeAllPopups);
+
+            DOMElements.dashboardLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                DOMElements.dashboardView.classList.remove('hidden');
+                DOMElements.notesView.classList.add('hidden');
+                 closeSidebarMobile();
+            });
+             DOMElements.allNotesLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                DOMElements.dashboardView.classList.add('hidden');
+                DOMElements.notesView.classList.remove('hidden');
+                 closeSidebarMobile();
+            });
+
+            DOMElements.calendarBtn.addEventListener('click', () => { renderCalendar(); openModal(DOMElements.calendarModal); });
+            DOMElements.settingsBtn.addEventListener('click', () => { applySettings(); openModal(DOMElements.settingsModal); });
+            if (DOMElements.settingsModal) {
+                 DOMElements.settingsModal.querySelector('#close-settings').addEventListener('click', () => closeModal(DOMElements.settingsModal));
+                 DOMElements.settingsModal.querySelector('#import-btn').addEventListener('click', handleImport);
+                 DOMElements.settingsModal.querySelector('#export-btn').addEventListener('click', handleExport);
+                 DOMElements.clearStorageBtn.addEventListener('click', handleClearLocalStorage);
+                 const settingsInputs = [
+                    { el: DOMElements.settingsModal.querySelector('#user-name-setting'), key: 'userName' },
+                    { el: DOMElements.settingsModal.querySelector('#title-setting'), key: 'title' },
+                    { el: DOMElements.settingsModal.querySelector('#footer-text-setting'), key: 'footerText' },
+                    { el: DOMElements.settingsModal.querySelector('#bg-color-setting'), key: 'bgColor' },
+                    { el: DOMElements.settingsModal.querySelector('#sidebar-color-setting'), key: 'sidebarColor' },
+                    { el: DOMElements.settingsModal.querySelector('#font-color-setting'), key: 'fontColor' },
+                    { el: DOMElements.settingsModal.querySelector('#note-card-color-setting'), key: 'noteCardColor' },
+                    { el: DOMElements.settingsModal.querySelector('#note-card-opacity-setting'), key: 'noteCardOpacity' },
+                    { el: DOMElements.settingsModal.querySelector('#modal-bg-color-setting'), key: 'modalBgColor' },
+                    { el: DOMElements.settingsModal.querySelector('#modal-opacity-setting'), key: 'modalOpacity' },
+                    { el: DOMElements.settingsModal.querySelector('#text-input-bg-color-setting'), key: 'textInputBgColor' },
+                    { el: DOMElements.settingsModal.querySelector('#text-input-font-color-setting'), key: 'textInputFontColor' }
+                ];
+                settingsInputs.forEach(({el, key}) => {
+                    if (el) el.addEventListener('input', (e) => updateSetting(key, e.target.value))
+                });
+
+                const addShortcutBtn = DOMElements.settingsModal.querySelector('#add-shortcut-btn');
+                const shortcutsManager = DOMElements.settingsModal.querySelector('#shortcuts-manager');
+                if(addShortcutBtn) addShortcutBtn.addEventListener('click', handleAddShortcut);
+                if(shortcutsManager) shortcutsManager.addEventListener('click', handleShortcutAction);
+            }
+             if (DOMElements.calendarModal) {
+                DOMElements.calendarModal.querySelector('#prev-month').addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); renderCalendar(); });
+                DOMElements.calendarModal.querySelector('#next-month').addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); renderCalendar(); });
+            }
+             if(DOMElements.confirmClearModal) {
+                DOMElements.deleteConfirmationInput.addEventListener('input', () => {
+                    if (DOMElements.deleteConfirmationInput.value === 'DELETE') {
+                        DOMElements.confirmClearActionBtn.disabled = false;
+                        DOMElements.confirmClearActionBtn.classList.remove('cursor-not-allowed', 'bg-gray-500');
+                        DOMElements.confirmClearActionBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                    } else {
+                        DOMElements.confirmClearActionBtn.disabled = true;
+                        DOMElements.confirmClearActionBtn.classList.add('cursor-not-allowed', 'bg-gray-500');
+                        DOMElements.confirmClearActionBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    }
+                });
+                DOMElements.confirmClearActionBtn.addEventListener('click', () => {
+                    if (DOMElements.deleteConfirmationInput.value === 'DELETE') {
+                        localStorage.clear();
+                        showNotification("All data has been cleared. The app will now reload.", "success");
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                });
+                DOMElements.cancelClearBtn.addEventListener('click', () => closeModal(DOMElements.confirmClearModal));
+            }
+            makeResizable(DOMElements.sidebar, DOMElements.sidebarResizeHandle, 'horizontal');
+            makeResizable(DOMElements.editNotePane, DOMElements.sidePaneResizeHandle, 'horizontal');
+            makeResizable(DOMElements.newNotePane, DOMElements.bottomResizeHandle, 'vertical');
+            DOMElements.cancelEmailBtn.addEventListener('click', () => closeModal(DOMElements.emailModal));
+            DOMElements.addCannedResponseBtn.addEventListener('click', handleAddCannedResponse);
+            DOMElements.sendEmailBtn.addEventListener('click', handleSendEmail);
+            DOMElements.imageUploadInput.addEventListener('change', handleImageUpload);
+        }
+
+        function handleSaveNewNote() {
+            const title = DOMElements.newNoteTitleInput.value || 'Untitled Note';
+            const content = DOMElements.newNoteEditor.innerHTML;
+            const label = DOMElements.newNoteLabelInput.value.trim();
+            const color = DOMElements.newNoteCardColorInput.value;
+            const now = new Date().toISOString();
+            state.notes.push({ id: Date.now().toString(), title, content, createdAt: now, updatedAt: now, archived: false, label, color });
+            saveData();
+            closeNewNotePane();
+            showNotification('Note saved!');
+        }
+
+        function handleSaveEdit() {
+            if (!state.currentNoteId) return;
+            const note = state.notes.find(n => n.id === state.currentNoteId);
+            note.title = DOMElements.editNoteTitleInput.value;
+            note.content = DOMElements.editNoteEditor.innerHTML;
+            note.label = DOMElements.editNoteLabelInput.value.trim();
+            note.color = DOMElements.editNoteCardColorInput.value;
+            note.updatedAt = new Date().toISOString();
+            saveData();
+            closeEditPane();
+            showNotification('Note updated!');
+        }
+
+        function handleDeleteNote() {
+             if (!state.currentNoteId) return;
+             state.notes = state.notes.filter(note => note.id !== state.currentNoteId);
+             saveData();
+             closeEditPane();
+             showNotification('Note deleted.', 'error');
+        }
+
+        function handleArchiveNote() {
+             if (!state.currentNoteId) return;
+             const note = state.notes.find(n => n.id === state.currentNoteId);
+             note.archived = !note.archived;
+             note.updatedAt = new Date().toISOString();
+             saveData();
+             closeEditPane();
+             showNotification(note.archived ? 'Note archived.' : 'Note unarchived.');
+        }
+
+        function handleExport() {
+            const dataStr = JSON.stringify({
+                notes: state.notes,
+                settings: state.settings,
+                cannedResponses: state.cannedResponses
+            });
+            const encodedData = btoa(dataStr);
+            const blob = new Blob([encodedData], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${state.settings.title.replace(/\s/g, '-')}-Export.mim`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showNotification('App data exported!');
+        }
+
+        function handleImport() {
+            DOMElements.importFileInput.click();
+            DOMElements.importFileInput.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const encodedString = event.target.result;
+                        const decodedString = atob(encodedString);
+                        const importedState = JSON.parse(decodedString);
+                        
+                        // Merge notes
+                        const existingNoteIds = new Set(state.notes.map(n => n.id));
+                        const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
+                        state.notes.push(...newNotes);
+
+                        // Merge canned responses
+                        const existingResponses = new Set(state.cannedResponses.map(r => r.name));
+                        if (Array.isArray(importedState.cannedResponses)) {
+                            importedState.cannedResponses.forEach(r => {
+                                if (!existingResponses.has(r.name)) {
+                                    state.cannedResponses.push(r);
+                                }
+                            });
+                        }
+
+                        // Merge settings
+                        state.settings = { ...defaultSettings, ...importedState.settings };
+
+                        saveData();
+                        applySettings();
+                        showNotification(`${newNotes.length} notes imported successfully!`);
+                    } catch (err) {
+                        console.error('Error parsing imported file:', err);
+                        showNotification('Invalid or corrupted import file.', 'error');
+                    }
+                };
+                reader.readAsText(file);
+                // Reset file input
+                DOMElements.importFileInput.value = '';
+            };
+        }
+        
+        function handleClearLocalStorage() {
+            openModal(DOMElements.confirmClearModal);
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file && state.activeEditor) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const dataUrl = e.target.result;
+                    const img = `<img src="${dataUrl}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+                    state.activeEditor.focus();
+                    document.execCommand('insertHTML', false, img);
+                };
+                reader.readAsDataURL(file);
+            }
+            // Reset file input to allow uploading the same file again
+            event.target.value = '';
+        }
+        
+        function handleAddCannedResponse() {
+            const name = DOMElements.newCannedResponseNameInput.value.trim();
+            const text = DOMElements.newCannedResponseTextInput.value.trim();
+            if (name && text) {
+                state.cannedResponses.push({ name, text });
+                DOMElements.newCannedResponseNameInput.value = '';
+                DOMElements.newCannedResponseTextInput.value = '';
+                saveData();
+                renderCannedResponses();
+            } else {
+                showNotification('Both name and text are required for canned responses.', 'error');
+            }
+        }
+
+        function handleSendEmail() {
+            const to = DOMElements.emailTo.value;
+            const subject = DOMElements.emailSubject.value;
+            const body = DOMElements.emailBody.value;
+            window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            closeModal(DOMElements.emailModal);
+        }
+
+        function handleAddShortcut() {
+            const nameInput = DOMElements.settingsModal.querySelector('#new-shortcut-name');
+            const urlInput = DOMElements.settingsModal.querySelector('#new-shortcut-url');
+            const iconInput = DOMElements.settingsModal.querySelector('#new-shortcut-icon');
+            const name = nameInput.value.trim();
+            let url = urlInput.value.trim();
+            const icon = iconInput.value;
+
+            if (name && url) {
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = 'https://' + url;
+                }
+                state.settings.customLinks.push({ id: Date.now().toString(), name, url, icon });
+                nameInput.value = '';
+                urlInput.value = '';
+                saveData();
+                renderShortcutsManager();
+            } else {
+                showNotification('Shortcut name and URL are required.', 'error');
+            }
+        }
+
+        function handleShortcutAction(e) {
+            if (e.target.classList.contains('delete-shortcut-btn')) {
+                const shortcutId = e.target.dataset.id;
+                state.settings.customLinks = state.settings.customLinks.filter(link => link.id !== shortcutId);
+                saveData();
+                renderShortcutsManager();
+            }
+        }
+
+
+        function updateSetting(key, value) {
+            state.settings[key] = value;
+            applySettings();
+            if (key === 'noteCardColor' || key === 'noteCardOpacity') {
+                 renderNotesGrid();
+                 renderDashboard();
+            }
+            localStorage.setItem('settings', JSON.stringify(state.settings));
+        }
+
+        function openNewNotePane() {
+            state.currentNoteId = null;
+            DOMElements.newNotePane.classList.add('is-open');
+            DOMElements.modalOverlay.classList.remove('hidden');
+            setTimeout(() => DOMElements.modalOverlay.classList.remove('opacity-0'), 10);
+
+            const allLabels = [...new Set(state.notes.map(n => n.label).filter(Boolean))];
+            DOMElements.labelsDatalist.innerHTML = allLabels.map(l => `<option value="${l}"></option>`).join('');
+
+            DOMElements.newNoteTitleInput.value = '';
+            DOMElements.newNoteEditor.innerHTML = '';
+            DOMElements.newNoteLabelInput.value = '';
+            DOMElements.newNoteCardColorInput.value = state.settings.noteCardColor;
+             closeSidebarMobile();
+        }
+
+        function closeNewNotePane() {
+            DOMElements.newNotePane.classList.remove('is-open');
+            updateOverlayState();
+        }
+
+        function openEditPane(noteId) {
+            state.currentNoteId = noteId;
+            const note = state.notes.find(n => n.id === noteId);
+            if (!note) return;
+
+            const allLabels = [...new Set(state.notes.map(n => n.label).filter(Boolean))];
+            DOMElements.labelsDatalist.innerHTML = allLabels.map(l => `<option value="${l}"></option>`).join('');
+
+            DOMElements.editNoteTitleInput.value = note.title;
+            DOMElements.editNoteEditor.innerHTML = note.content;
+            DOMElements.editNoteLabelInput.value = note.label || '';
+            DOMElements.editNoteCardColorInput.value = note.color || state.settings.noteCardColor;
+            
+            DOMElements.archiveNoteBtn.title = note.archived ? 'Unarchive' : 'Archive';
+            DOMElements.archiveNoteBtn.classList.toggle('bg-green-500', note.archived);
+            DOMElements.archiveNoteBtn.classList.toggle('hover:bg-green-600', note.archived);
+            DOMElements.archiveNoteBtn.classList.toggle('bg-yellow-500', !note.archived);
+            DOMElements.archiveNoteBtn.classList.toggle('hover:bg-yellow-600', !note.archived);
+
+            DOMElements.editNotePane.classList.add('is-open');
+            DOMElements.modalOverlay.classList.remove('hidden');
+            setTimeout(() => DOMElements.modalOverlay.classList.remove('opacity-0'), 10);
+            closeSidebarMobile();
+        }
+
+        function closeEditPane() {
+            DOMElements.editNotePane.classList.remove('is-open');
+            state.currentNoteId = null;
+            updateOverlayState();
+        }
+
+        function openModal(modal) {
+            DOMElements.modalOverlay.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                DOMElements.modalOverlay.classList.remove('opacity-0');
+                modal.classList.remove('opacity-0', 'scale-95');
+            }, 10);
+             closeSidebarMobile();
+        }
+
+        function closeModal(modal) {
+            modal.classList.add('opacity-0', 'scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                updateOverlayState();
+            }, 300);
+        }
+
+        function updateOverlayState() {
+            const anyPopupOpen = DOMElements.newNotePane.classList.contains('is-open') ||
+                                 DOMElements.editNotePane.classList.contains('is-open') ||
+                                 !DOMElements.calendarModal.classList.contains('hidden') ||
+                                 !DOMElements.settingsModal.classList.contains('hidden') ||
+                                 !DOMElements.emailModal.classList.contains('hidden') ||
+                                 !DOMElements.welcomeModal.classList.contains('hidden') ||
+                                 !DOMElements.confirmClearModal.classList.contains('hidden');
+            
+            const isSidebarOpen = !DOMElements.sidebar.classList.contains('-translate-x-full');
+
+            if (!anyPopupOpen && !isSidebarOpen) {
+                DOMElements.modalOverlay.classList.add('opacity-0');
+                setTimeout(() => DOMElements.modalOverlay.classList.add('hidden'), 300);
+            } else {
+                 DOMElements.modalOverlay.classList.remove('hidden');
+                 setTimeout(() => DOMElements.modalOverlay.classList.remove('opacity-0'), 10);
+            }
+        }
+        
+        function closeSidebarMobile(){
+             if (window.innerWidth < 768) { // md breakpoint
+                DOMElements.sidebar.classList.add('-translate-x-full');
+                updateOverlayState();
+            }
+        }
+
+        function closeAllPopups() {
+            closeNewNotePane();
+            closeEditPane();
+            closeModal(DOMElements.calendarModal);
+            closeModal(DOMElements.settingsModal);
+            closeModal(DOMElements.emailModal);
+            closeModal(DOMElements.welcomeModal);
+            closeModal(DOMElements.confirmClearModal);
+            closeSidebarMobile();
+        }
+
+        function setupToolbar(toolbarEl, editorEl) {
+            toolbarEl.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('button, input');
+                if (!target) return;
+                const command = target.dataset.command;
+                state.activeEditor = editorEl;
+                editorEl.focus();
+                
+                if (command === 'email') {
+                    openEmailModal();
+                } else if (command === 'insertImage') {
+                    DOMElements.imageUploadInput.click();
+                } else if (command) {
+                    document.execCommand(command, false, target.value || null);
+                }
+            });
+             editorEl.addEventListener('keyup', () => {
+                 toolbarEl.querySelectorAll('button[data-command]').forEach(btn => {
+                    try {
+                        const isActive = document.queryCommandState(btn.dataset.command);
+                        btn.classList.toggle('active', isActive);
+                    } catch(e) { /* some commands don't support queryCommandState */ }
+                 });
+            });
+        }
+
+        function openEmailModal() {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = state.activeEditor.innerHTML;
+            DOMElements.emailBody.value = tempDiv.innerText;
+            renderCannedResponses();
+            openModal(DOMElements.emailModal);
+        }
+
+        function renderCannedResponses() {
+            DOMElements.cannedResponsesList.innerHTML = '';
+            state.cannedResponses.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'p-1 hover:bg-gray-600 cursor-pointer rounded';
+                li.textContent = item.name;
+                li.onclick = () => {
+                    DOMElements.emailBody.value += `\n\n${item.text}`;
+                };
+                DOMElements.cannedResponsesList.appendChild(li);
+            });
+        }
+
+        function showNotification(message, type = 'success') {
+            const { notification } = DOMElements;
+            notification.textContent = message;
+            notification.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform translate-y-2 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            notification.classList.remove('hidden');
+            setTimeout(() => {
+                notification.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+            setTimeout(() => {
+                notification.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => notification.classList.add('hidden'), 500);
+            }, 2000);
+        }
+
+        function renderCalendar() {
+             const { calendarModal } = DOMElements;
+            if (!calendarModal) return;
+            const grid = calendarModal.querySelector('#calendar-grid');
+            const monthYear = calendarModal.querySelector('#month-year');
+            const notesList = calendarModal.querySelector('#calendar-notes-list');
+
+            grid.innerHTML = '';
+            notesList.innerHTML = '';
+            const year = state.currentDate.getFullYear();
+            const month = state.currentDate.getMonth();
+            monthYear.innerText = `${state.currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+                grid.innerHTML += `<div class="font-semibold text-gray-400 text-sm">${day}</div>`;
+            });
+
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayEl = document.createElement('button');
+                dayEl.className = 'calendar-day hover:bg-gray-700';
+                dayEl.innerText = day;
+                const dateStr = new Date(year, month, day).toISOString().split('T')[0];
+                const notesOnDay = state.notes.filter(n => n.updatedAt && n.updatedAt.startsWith(dateStr));
+
+                if (notesOnDay.length > 0) dayEl.classList.add('has-notes');
+
+                dayEl.addEventListener('click', () => {
+                    document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                    dayEl.classList.add('selected');
+                    renderCalendarNotes(notesOnDay, notesList);
+                });
+                grid.appendChild(dayEl);
+            }
+        }
+
+        function renderCalendarNotes(notesOnDay, notesListEl) {
+            notesListEl.innerHTML = '';
+            if (notesOnDay.length === 0) {
+                notesListEl.innerHTML = `<p class="text-gray-400 p-2">No notes for this day.</p>`;
+                return;
+            }
+            notesOnDay.forEach(note => {
+                const noteEl = document.createElement('div');
+                noteEl.className = 'p-2 rounded cursor-pointer hover:bg-gray-700';
+                noteEl.innerText = note.title;
+                noteEl.addEventListener('click', () => {
+                    closeModal(DOMElements.calendarModal);
+                    openEditPane(note.id);
+                });
+                notesListEl.appendChild(noteEl);
+            });
+        }
+
+        function renderShortcuts() {
+            const { shortcutsGrid } = DOMElements;
+            if (!shortcutsGrid) return;
+            shortcutsGrid.innerHTML = '';
+            state.settings.customLinks.forEach(link => {
+                const linkEl = document.createElement('a');
+                linkEl.href = link.url;
+                linkEl.target = '_blank';
+                linkEl.rel = 'noopener noreferrer';
+                linkEl.className = 'flex flex-col items-center justify-center p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors';
+                linkEl.innerHTML = `<div class="text-4xl mb-2">${link.icon}</div><span>${link.name}</span>`;
+                shortcutsGrid.appendChild(linkEl);
+            });
+        }
+
+        function renderShortcutsManager() {
+            const { settingsModal } = DOMElements;
+            if (!settingsModal) return;
+            const manager = settingsModal.querySelector('#shortcuts-manager');
+            const iconSelect = settingsModal.querySelector('#new-shortcut-icon');
+            if(!manager || !iconSelect) return;
+
+            manager.innerHTML = '';
+            const icons = ['🔗', '📝', '💼', '🏠', '⭐️', '❤️', '⚙️', '📊'];
+            iconSelect.innerHTML = icons.map(i => `<option value="${i}">${i}</option>`).join('');
+
+            state.settings.customLinks.forEach(link => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-gray-700 p-2 rounded';
+                div.innerHTML = `
+                    <span>${link.icon} ${link.name}</span>
+                    <button data-id="${link.id}" class="delete-shortcut-btn text-red-500 hover:text-red-400">X</button>
+                `;
+                manager.appendChild(div);
+            });
+        }
+
+        // --- Initial Load ---
+        init();
+    </script>
+</body>
+</html>
