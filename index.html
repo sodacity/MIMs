@@ -69,6 +69,9 @@
         .drop-zone-active .drop-zone-overlay {
             display: flex;
         }
+        #global-drop-zone {
+            transition: opacity 0.2s;
+        }
         .toolbar-btn {
             background-color: transparent; border: 1px solid #4a5568; border-radius: 4px;
             color: white; padding: 0.25rem 0.75rem; transition: background-color 0.2s;
@@ -215,6 +218,14 @@
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
+    <!-- Global Drop Zone -->
+    <div id="global-drop-zone" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+        <div class="text-center text-white border-4 border-dashed border-white rounded-lg p-12">
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <h2 class="text-3xl font-bold">Drop .mim file to import</h2>
+        </div>
+    </div>
+    
     <!-- Sidebar -->
     <div id="sidebar" class="sidebar bg-gray-800 p-4 flex flex-col fixed h-full z-40 w-64 md:w-auto md:relative md:translate-x-0 transform -translate-x-full">
         <div id="sidebar-resize-handle" class="hidden md:block"></div>
@@ -545,7 +556,7 @@
             <div id="qr-code-container" class="flex justify-center bg-white p-4 rounded-lg"></div>
             <div id="share-info" class="mt-4 text-sm text-gray-400"></div>
             <div id="share-password-display" class="mt-2 text-sm"></div>
-            <div class="mt-4">
+             <div class="mt-4">
                 <label class="flex items-center justify-center cursor-pointer">
                     <span class="mr-3 font-semibold">Require Password on Open</span>
                     <div class="relative">
@@ -592,6 +603,7 @@
             deleteConfirmationInput: document.getElementById('delete-confirmation-input'),
             cancelClearBtn: document.getElementById('cancel-clear-btn'),
             confirmClearActionBtn: document.getElementById('confirm-clear-action-btn'),
+            globalDropZone: document.getElementById('global-drop-zone'),
             // Edit Note Pane
             editNotePane: document.getElementById('edit-note-pane'),
             sidePaneResizeHandle: document.getElementById('side-pane-resize-handle'),
@@ -649,8 +661,7 @@
             importFileInput: document.getElementById('import-file-input'),
             imageUploadInput: document.getElementById('image-upload-input'),
             clearStorageBtn: document.getElementById('clear-storage-btn'),
-            copySessionBtn: document.getElementById('copy-session-btn'),
-             // Dashboard
+            // Dashboard
             dashboardView: document.getElementById('dashboard-view'),
             notesView: document.getElementById('notes-view'),
             dashboardLink: document.getElementById('dashboard-link'),
@@ -1112,6 +1123,35 @@
             DOMElements.addIframeBtn.addEventListener('click', handleAddIframe);
             DOMElements.cancelIframeHelperBtn.addEventListener('click', () => closeModal(DOMElements.iframeHelperModal));
 
+            // Drag and Drop for .mim files
+            const body = DOMElements.body;
+            body.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                DOMElements.globalDropZone.classList.remove('hidden');
+            });
+            body.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            body.addEventListener('dragleave', (e) => {
+                 if (!body.contains(e.relatedTarget)) {
+                    DOMElements.globalDropZone.classList.add('hidden');
+                 }
+            });
+            body.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                DOMElements.globalDropZone.classList.add('hidden');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const mimFile = Array.from(files).find(file => file.name.endsWith('.mim'));
+                    if (mimFile) {
+                        processMimFile(mimFile);
+                    }
+                }
+            });
+
 
             if (DOMElements.settingsModal) {
                  DOMElements.settingsModal.querySelector('#close-settings').addEventListener('click', () => closeModal(DOMElements.settingsModal));
@@ -1274,15 +1314,24 @@
                 showNotification('Export failed due to an encryption error.', 'error');
             }
         }
+        
+        function processMimFile(file) {
+             const password = prompt("Enter the session password for this file:");
+            if (!password) {
+                showNotification('Password is required to import a file.', 'error');
+                return;
+            }
+            importMimFile(file, password);
+        }
+
         function handleImport(e) {
             const file = e.target.files[0];
             if (!file) return;
-            const password = prompt("Enter the session password for this file:");
-            if (!password) {
-                showNotification('Password is required to import a file.', 'error');
-                DOMElements.importFileInput.value = '';
-                return;
-            }
+            processMimFile(file);
+            DOMElements.importFileInput.value = '';
+        }
+        
+        function importMimFile(file, password) {
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
@@ -1296,9 +1345,16 @@
                     const decodedString = new TextDecoder().decode(decryptedContent);
                     const importedState = JSON.parse(decodedString);
                     
+                    let newNotes = [];
+                    if (Array.isArray(importedState)) { // single note export
+                        newNotes = importedState;
+                    } else if (importedState.notes) { // full export
+                        newNotes = importedState.notes;
+                    }
+                    
                     const existingNoteIds = new Set(state.notes.map(n => n.id));
-                    const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
-                    state.notes.push(...newNotes);
+                    const uniqueNewNotes = newNotes.filter(n => !existingNoteIds.has(n.id));
+                    state.notes.push(...uniqueNewNotes);
 
                     const existingResponses = new Set(state.cannedResponses.map(r => r.name));
                     if (Array.isArray(importedState.cannedResponses)) {
@@ -1315,12 +1371,10 @@
                     
                     await saveData();
                     applySettings();
-                    showNotification(`${newNotes.length} notes imported successfully!`);
+                    showNotification(`${uniqueNewNotes.length} new note(s) imported successfully!`);
                 } catch (err) {
                     console.error("Decryption/Import failed:", err);
                     showNotification('Import failed: Invalid password or corrupted file.', 'error');
-                } finally {
-                     DOMElements.importFileInput.value = '';
                 }
             };
             reader.readAsArrayBuffer(file);
