@@ -608,31 +608,84 @@
             sessionPassword: ''
         };
 
-        // --- Data Management ---
-        function loadData() {
-            const data = DOMElements.body.dataset.exportedData;
-            if (data) {
-                try {
-                    const parsedData = JSON.parse(data);
-                    state.notes = parsedData.notes || [];
-                    state.settings = { ...defaultSettings, ...(parsedData.settings || {}) };
-                    state.cannedResponses = parsedData.cannedResponses || [];
-                } catch (e) { console.error("Could not parse exported data:", e); loadFromLocalStorage(); }
-            } else { loadFromLocalStorage(); }
-        }
-        function loadFromLocalStorage() {
-            state.notes = JSON.parse(localStorage.getItem('notes')) || [];
-            state.cannedResponses = JSON.parse(localStorage.getItem('cannedResponses')) || [];
-            const savedSettings = JSON.parse(localStorage.getItem('settings'));
-            state.settings = { ...defaultSettings, ...savedSettings };
-        }
-        function saveData() {
-            localStorage.setItem('notes', JSON.stringify(state.notes));
-            localStorage.setItem('settings', JSON.stringify(state.settings));
-            localStorage.setItem('cannedResponses', JSON.stringify(state.cannedResponses));
-            renderAll();
+        // --- IndexedDB Helper ---
+        const db = {
+            instance: null,
+            init(dbName, version, upgradeCallback) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(dbName, version);
+                    request.onupgradeneeded = upgradeCallback;
+                    request.onsuccess = (e) => {
+                        this.instance = e.target.result;
+                        resolve();
+                    };
+                    request.onerror = (e) => reject(`IndexedDB error: ${e.target.errorCode}`);
+                });
+            },
+            get(storeName, key) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.instance.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const request = store.get(key);
+                    request.onsuccess = (e) => resolve(e.target.result);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            },
+            getAll(storeName) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.instance.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const request = store.getAll();
+                    request.onsuccess = (e) => resolve(e.target.result);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            },
+            put(storeName, value, key) {
+                 return new Promise((resolve, reject) => {
+                    const tx = this.instance.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const request = store.put(value, key);
+                    tx.oncomplete = () => resolve(request.result);
+                    tx.onerror = () => reject(tx.error);
+                });
+            },
+            clear(storeName) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.instance.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    store.clear();
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            }
+        };
+
+        async function loadFromDB() {
+            try {
+                state.notes = await db.getAll('notes') || [];
+                state.cannedResponses = await db.getAll('cannedResponses') || [];
+                const savedSettings = await db.get('settings', 'appSettings');
+                state.settings = { ...defaultSettings, ...savedSettings };
+            } catch(e) {
+                 console.error("Failed to load data from IndexedDB", e);
+                 state.settings = defaultSettings;
+            }
         }
         
+        async function saveData() {
+            try {
+                await Promise.all([
+                    db.clear('notes').then(() => Promise.all(state.notes.map(note => db.put('notes', note)))),
+                    db.clear('cannedResponses').then(() => Promise.all(state.cannedResponses.map(res => db.put('cannedResponses', res)))),
+                    db.put('settings', state.settings, 'appSettings')
+                ]);
+            } catch (e) {
+                 showNotification('An error occurred while saving.', 'error');
+                 console.error("Save failed:", e);
+            }
+            renderAll();
+        }
+
         // --- HTML Sanitizer ---
         function sanitizeHTML(dirtyHTML) {
             const tempDiv = document.createElement('div');
@@ -850,7 +903,19 @@
         }
         
         async function init() {
-            loadData();
+            await db.init('MimsDB', 1, (e) => {
+                const dbInstance = e.target.result;
+                if (!dbInstance.objectStoreNames.contains('notes')) {
+                    dbInstance.createObjectStore('notes', { keyPath: 'id' });
+                }
+                if (!dbInstance.objectStoreNames.contains('settings')) {
+                    dbInstance.createObjectStore('settings');
+                }
+                if (!dbInstance.objectStoreNames.contains('cannedResponses')) {
+                    dbInstance.createObjectStore('cannedResponses', { keyPath: 'name' });
+                }
+            });
+            await loadFromDB();
             
             const currentUrl = new URL(window.location.href);
             const sessionPasswordFromUrl = currentUrl.searchParams.get('sesh-ID');
@@ -861,7 +926,7 @@
                 if (dataFromUrl) {
                     await handleUrlDataImport(dataFromUrl, sessionPasswordFromUrl);
                 }
-                saveData();
+                await saveData();
                 showNotification('Session Password loaded from URL!', 'success');
             }
 
@@ -873,8 +938,10 @@
             setInterval(updateTime, 1000);
             updateTime();
             
-            if (!localStorage.getItem('hasSeenWelcome')) {
-                openModal(DOMElements.welcomeModal);
+            const firstVisit = await db.get('settings', 'firstVisit');
+            if(firstVisit === undefined) {
+                 openModal(DOMElements.welcomeModal);
+                 db.put('settings', false, 'firstVisit');
             }
         }
 
@@ -922,7 +989,6 @@
             
             DOMElements.closeWelcomeModalBtn.addEventListener('click', () => {
                 closeModal(DOMElements.welcomeModal);
-                localStorage.setItem('hasSeenWelcome', 'true');
             });
 
             DOMElements.newNoteBtn.addEventListener('click', openNewNotePane);
@@ -1006,9 +1072,12 @@
                         DOMElements.confirmClearActionBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
                     }
                 });
-                DOMElements.confirmClearActionBtn.addEventListener('click', () => {
+                DOMElements.confirmClearActionBtn.addEventListener('click', async () => {
                     if (DOMElements.deleteConfirmationInput.value === 'DELETE') {
-                        localStorage.clear();
+                        await db.clear('notes');
+                        await db.clear('settings');
+                        await db.clear('cannedResponses');
+                        localStorage.clear(); // Clear any old remnants
                         showNotification("All data has been cleared. The app will now reload.", "success");
                         setTimeout(() => window.location.reload(), 1500);
                     }
@@ -1038,45 +1107,49 @@
             });
         }
 
-        function handleSaveNewNote() {
+        async function handleSaveNewNote() {
             const title = DOMElements.newNoteTitleInput.value || 'Untitled Note';
             const content = sanitizeHTML(DOMElements.newNoteEditor.innerHTML);
             const label = DOMElements.newNoteLabelInput.value.trim();
             const color = DOMElements.newNoteCardColorInput.value;
             const now = new Date().toISOString();
-            state.notes.push({ id: Date.now().toString(), title, content, createdAt: now, updatedAt: now, archived: false, label, color });
-            saveData();
+            const newNote = { id: Date.now().toString(), title, content, createdAt: now, updatedAt: now, archived: false, label, color };
+            state.notes.push(newNote);
+            await saveData();
             closeNewNotePane();
             showNotification('Note saved!');
         }
 
-        function handleSaveEdit() {
+        async function handleSaveEdit() {
             if (!state.currentNoteId) return;
             const note = state.notes.find(n => n.id === state.currentNoteId);
+            if (!note) return;
+            
             note.title = DOMElements.editNoteTitleInput.value;
             note.content = sanitizeHTML(DOMElements.editNoteEditor.innerHTML);
             note.label = DOMElements.editNoteLabelInput.value.trim();
             note.color = DOMElements.editNoteCardColorInput.value;
             note.updatedAt = new Date().toISOString();
-            saveData();
+            
+            await saveData();
             closeEditPane();
             showNotification('Note updated!');
         }
 
-        function handleDeleteNote() {
+        async function handleDeleteNote() {
              if (!state.currentNoteId) return;
              state.notes = state.notes.filter(note => note.id !== state.currentNoteId);
-             saveData();
+             await saveData();
              closeEditPane();
              showNotification('Note deleted.', 'error');
         }
 
-        function handleArchiveNote() {
+        async function handleArchiveNote() {
              if (!state.currentNoteId) return;
              const note = state.notes.find(n => n.id === state.currentNoteId);
              note.archived = !note.archived;
              note.updatedAt = new Date().toISOString();
-             saveData();
+             await saveData();
              closeEditPane();
              showNotification(note.archived ? 'Note archived.' : 'Note unarchived.');
         }
@@ -1146,7 +1219,7 @@
                     }
                     const currentPassword = state.settings.sessionPassword;
                     state.settings = { ...defaultSettings, ...importedState.settings, sessionPassword: currentPassword };
-                    saveData();
+                    await saveData();
                     applySettings();
                     showNotification(`${newNotes.length} notes imported successfully!`);
                 } catch (err) {
@@ -1161,7 +1234,6 @@
 
         async function handleUrlDataImport(dataFromUrl, password) {
             try {
-                // Base64 decode --> ArrayBuffer
                 const binary_string = window.atob(dataFromUrl);
                 const len = binary_string.length;
                 const bytes = new Uint8Array(len);
@@ -1183,17 +1255,17 @@
                 
                 const existingNoteIds = new Set(state.notes.map(n => n.id));
                 const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
-                state.notes.unshift(...newNotes); // Add to the beginning
+                state.notes.unshift(...newNotes);
                 
                 showNotification(`Imported ${newNotes.length} notes from URL!`, 'success');
-                history.replaceState({}, document.title, window.location.pathname); // Clean URL
-                saveData();
+                history.replaceState({}, document.title, window.location.pathname);
+                await saveData();
                 applySettings();
 
             } catch (err) {
                 console.error("URL Data Decryption/Import failed:", err);
                 showNotification('Could not load session from URL. Invalid data or password.', 'error');
-                history.replaceState({}, document.title, window.location.pathname); // Clean URL on failure too
+                history.replaceState({}, document.title, window.location.pathname);
             }
         }
 
@@ -1210,7 +1282,6 @@
             }
 
             const notesToCopy = state.notes.slice(0, 3).map(note => {
-                // Strip out image data to keep URL small
                 const content = note.content.replace(/<img src="data:image[^>]+>/g, '[Image Data Removed]');
                 return {...note, content};
             });
@@ -1230,7 +1301,6 @@
                 combinedData.set(iv, salt.length);
                 combinedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
                 
-                // Convert ArrayBuffer to Base64
                 let binary = '';
                 const bytes = new Uint8Array(combinedData);
                 const len = bytes.byteLength;
@@ -1309,15 +1379,16 @@
             }
         }
         
-        function handleAddCannedResponse() {
+        async function handleAddCannedResponse() {
             const name = DOMElements.newCannedResponseNameInput.value.trim();
             const text = DOMElements.newCannedResponseTextInput.value.trim();
             if (name && text) {
-                state.cannedResponses.push({ name, text });
-                DOMElements.newCannedResponseNameInput.value = '';
-                DOMElements.newCannedResponseTextInput.value = '';
-                saveData();
+                const newResponse = { name, text };
+                state.cannedResponses.push(newResponse);
+                await saveData();
                 renderCannedResponses();
+                 DOMElements.newCannedResponseNameInput.value = '';
+                DOMElements.newCannedResponseTextInput.value = '';
             } else {
                 showNotification('Both name and text are required for canned responses.', 'error');
             }
@@ -1331,7 +1402,7 @@
             closeModal(DOMElements.emailModal);
         }
 
-        function handleAddShortcut() {
+        async function handleAddShortcut() {
             const nameInput = DOMElements.settingsModal.querySelector('#new-shortcut-name');
             const urlInput = DOMElements.settingsModal.querySelector('#new-shortcut-url');
             const iconInput = DOMElements.settingsModal.querySelector('#new-shortcut-icon');
@@ -1344,33 +1415,33 @@
                     url = 'https://' + url;
                 }
                 state.settings.customLinks.push({ id: Date.now().toString(), name, url, icon });
+                await saveData();
                 nameInput.value = '';
                 urlInput.value = '';
-                saveData();
                 renderShortcutsManager();
             } else {
                 showNotification('Shortcut name and URL are required.', 'error');
             }
         }
 
-        function handleShortcutAction(e) {
+        async function handleShortcutAction(e) {
             if (e.target.classList.contains('delete-shortcut-btn')) {
                 const shortcutId = e.target.dataset.id;
                 state.settings.customLinks = state.settings.customLinks.filter(link => link.id !== shortcutId);
-                saveData();
+                await saveData();
                 renderShortcutsManager();
             }
         }
 
 
-        function updateSetting(key, value) {
+        async function updateSetting(key, value) {
             state.settings[key] = value;
+            await saveData();
             applySettings();
             if (key === 'noteCardColor' || key === 'noteCardOpacity') {
                  renderNotesGrid();
                  renderDashboard();
             }
-            localStorage.setItem('settings', JSON.stringify(state.settings));
         }
 
         function openNewNotePane() {
@@ -1632,7 +1703,7 @@
             if(!manager || !iconSelect) return;
 
             manager.innerHTML = '';
-            const icons = ['🔗', '�', '💼', '🏠', '⭐️', '❤️', '⚙️', '📊'];
+            const icons = ['🔗', '📝', '💼', '🏠', '⭐️', '❤️', '⚙️', '📊'];
             iconSelect.innerHTML = icons.map(i => `<option value="${i}">${i}</option>`).join('');
 
             state.settings.customLinks.forEach(link => {
