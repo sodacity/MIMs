@@ -8,8 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- MODIFICATION: Added QR Code generator library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.js"></script>
+    <!-- LZ-String Compression Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -339,19 +340,26 @@
                     <label for="edit-note-card-color-input" class="font-semibold" title="Note Card Color">🎨</label>
                     <input type="color" id="edit-note-card-color-input">
                 </div>
-                <div class="flex justify-end gap-2 mt-6 items-center">
-                    <button id="archive-note" class="action-btn text-white" title="Archive">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    </button>
-                     <button id="delete-note" class="action-btn bg-red-500 hover:bg-red-600 text-white" title="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
-                    <button id="cancel-edit-note" class="action-btn bg-gray-600 hover:bg-gray-700 text-white" title="Cancel">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-                    <button id="save-edit-note" class="action-btn bg-green-500 hover:bg-green-600 text-white" title="Save">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </button>
+                <div class="flex justify-between items-center mt-6">
+                    <div>
+                        <button id="share-note-btn" class="action-btn bg-purple-600 hover:bg-purple-700 text-white" title="Share Note">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="archive-note" class="action-btn text-white" title="Archive">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"></path><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                        </button>
+                         <button id="delete-note" class="action-btn bg-red-500 hover:bg-red-600 text-white" title="Delete">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                        <button id="cancel-edit-note" class="action-btn bg-gray-600 hover:bg-gray-700 text-white" title="Cancel">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                        <button id="save-edit-note" class="action-btn bg-green-500 hover:bg-green-600 text-white" title="Save">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -478,7 +486,7 @@
                     <div class="flex justify-between items-center"><label for="text-input-font-color-setting" class="font-semibold">Text Input Font Color</label><input type="color" id="text-input-font-color-setting"></div>
                      <hr>
                      <div>
-                        <button id="copy-session-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Copy Session URL & Show QR Code</button>
+                        <button id="copy-session-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Copy Full Session URL</button>
                      </div>
                      <hr>
                     <h3 class="text-lg font-semibold">Manage Shortcuts</h3>
@@ -528,11 +536,21 @@
         </div>
     </div>
     
-    <!-- MODIFICATION: QR Code Modal -->
     <div id="qr-code-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-xs p-6 text-center">
-            <h2 class="text-2xl font-bold mb-4">Scan Session QR Code</h2>
-            <div id="qr-code-container" class="flex justify-center"></div>
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 text-center">
+            <h2 class="text-2xl font-bold mb-4">Share Note</h2>
+            <div id="qr-code-container" class="flex justify-center bg-white p-4 rounded-lg"></div>
+            <div id="share-password-display" class="mt-4 text-sm"></div>
+             <div class="mt-4">
+                <label class="flex items-center justify-center cursor-pointer">
+                    <span class="mr-3 font-semibold">Require Password on Open</span>
+                    <div class="relative">
+                        <input type="checkbox" id="secure-send-toggle" class="sr-only">
+                        <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                        <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                    </div>
+                </label>
+            </div>
             <button id="close-qr-code-modal" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full">Close</button>
         </div>
     </div>
@@ -579,6 +597,7 @@
             cancelEditNoteBtn: document.getElementById('cancel-edit-note'),
             deleteNoteBtn: document.getElementById('delete-note'),
             archiveNoteBtn: document.getElementById('archive-note'),
+            shareNoteBtn: document.getElementById('share-note-btn'),
             // New Note Pane
             newNoteBtn: document.getElementById('new-note-btn'),
             newNotePane: document.getElementById('new-note-pane'),
@@ -634,10 +653,12 @@
             timeDisplay: document.getElementById('time-display'),
             recentNotesContainer: document.getElementById('recent-notes-container'),
             shortcutsGrid: document.getElementById('shortcuts-grid'),
-            // MODIFICATION: QR Code Modal elements
+            // QR Code Modal elements
             qrCodeModal: document.getElementById('qr-code-modal'),
             qrCodeContainer: document.getElementById('qr-code-container'),
+            sharePasswordDisplay: document.getElementById('share-password-display'),
             closeQrCodeModalBtn: document.getElementById('close-qr-code-modal'),
+            secureSendToggle: document.getElementById('secure-send-toggle'),
         };
 
         // --- App State ---
@@ -964,15 +985,22 @@
             const currentUrl = new URL(window.location.href);
             const sessionPasswordFromUrl = currentUrl.searchParams.get('sesh-ID');
             const dataFromUrl = currentUrl.searchParams.get('data');
+            const requiresSecret = currentUrl.searchParams.get('secret') === 'true';
 
-            if (sessionPasswordFromUrl) {
-                state.settings.sessionPassword = sessionPasswordFromUrl;
-                if (dataFromUrl) {
-                    await handleUrlDataImport(dataFromUrl, sessionPasswordFromUrl);
+            if (dataFromUrl) {
+                let password = sessionPasswordFromUrl;
+                if (requiresSecret && !password) {
+                     password = prompt("This note is protected. Please enter the password to view it:");
                 }
-                await saveData();
-                showNotification('Session Password loaded from URL!', 'success');
+                
+                if (password) {
+                    await handleUrlDataImport(dataFromUrl, password);
+                } else if (requiresSecret) {
+                     showNotification("Password required to open this secret note.", "error");
+                     history.replaceState({}, document.title, window.location.pathname);
+                }
             }
+
 
             applySettings();
             renderAll();
@@ -1031,13 +1059,10 @@
                 DOMElements.modalOverlay.classList.toggle('opacity-0');
             });
             
-            DOMElements.closeWelcomeModalBtn.addEventListener('click', () => {
-                closeModal(DOMElements.welcomeModal);
-            });
-            
-            DOMElements.closeQrCodeModalBtn.addEventListener('click', () => {
-                closeModal(DOMElements.qrCodeModal);
-            });
+            DOMElements.closeWelcomeModalBtn.addEventListener('click', () => closeModal(DOMElements.welcomeModal));
+            DOMElements.closeQrCodeModalBtn.addEventListener('click', () => closeModal(DOMElements.qrCodeModal));
+            DOMElements.shareNoteBtn.addEventListener('click', handleShareNote);
+            DOMElements.secureSendToggle.addEventListener('change', handleShareNote);
 
             DOMElements.newNoteBtn.addEventListener('click', openNewNotePane);
             DOMElements.cancelNewNoteBtn.addEventListener('click', closeNewNotePane);
@@ -1238,9 +1263,9 @@
         function handleImport(e) {
             const file = e.target.files[0];
             if (!file) return;
-            const password = state.settings.sessionPassword;
+            const password = prompt("Enter the session password for this file:");
             if (!password) {
-                showNotification('Please enter your Session Password in Settings before importing.', 'error');
+                showNotification('Password is required to import a file.', 'error');
                 DOMElements.importFileInput.value = '';
                 return;
             }
@@ -1256,17 +1281,23 @@
                     const decryptedContent = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encryptedContent);
                     const decodedString = new TextDecoder().decode(decryptedContent);
                     const importedState = JSON.parse(decodedString);
+                    
                     const existingNoteIds = new Set(state.notes.map(n => n.id));
                     const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
                     state.notes.push(...newNotes);
+
                     const existingResponses = new Set(state.cannedResponses.map(r => r.name));
                     if (Array.isArray(importedState.cannedResponses)) {
                         importedState.cannedResponses.forEach(r => {
                             if (!existingResponses.has(r.name)) { state.cannedResponses.push(r); }
                         });
                     }
-                    const currentPassword = state.settings.sessionPassword;
-                    state.settings = { ...defaultSettings, ...importedState.settings, sessionPassword: currentPassword };
+
+                    if (importedState.settings) {
+                        const currentPassword = state.settings.sessionPassword;
+                        state.settings = { ...state.settings, ...importedState.settings, sessionPassword: currentPassword };
+                    }
+                    
                     await saveData();
                     applySettings();
                     showNotification(`${newNotes.length} notes imported successfully!`);
@@ -1282,37 +1313,45 @@
 
         async function handleUrlDataImport(dataFromUrl, password) {
             try {
-                const binary_string = window.atob(dataFromUrl);
+                const base64 = dataFromUrl.replace(/-/g, '+').replace(/_/g, '/');
+                const binary_string = window.atob(base64);
                 const len = binary_string.length;
                 const bytes = new Uint8Array(len);
                 for (let i = 0; i < len; i++) {
                     bytes[i] = binary_string.charCodeAt(i);
                 }
-                const combinedData = bytes.buffer;
-
-                const salt = combinedData.slice(0, 16);
-                const iv = combinedData.slice(16, 28);
-                const encryptedContent = combinedData.slice(28);
+                const encryptedData = bytes;
+                
+                const salt = encryptedData.slice(0, 16);
+                const iv = encryptedData.slice(16, 28);
+                const data = encryptedData.slice(28);
 
                 const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
                 const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
-                const decryptedContent = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encryptedContent);
-
-                const decodedString = new TextDecoder().decode(decryptedContent);
-                const importedState = JSON.parse(decodedString);
+                const decryptedCompressed = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+                
+                const decompressedString = LZString.decompressFromUint8Array(new Uint8Array(decryptedCompressed));
+                if (!decompressedString) {
+                    throw new Error("Decompression failed. The data might be corrupted or the password is wrong.");
+                }
+                const importedNote = JSON.parse(decompressedString);
                 
                 const existingNoteIds = new Set(state.notes.map(n => n.id));
-                const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
-                state.notes.unshift(...newNotes);
                 
-                showNotification(`Imported ${newNotes.length} notes from URL!`, 'success');
+                if (!existingNoteIds.has(importedNote.id)) {
+                    state.notes.unshift(importedNote);
+                    await saveData();
+                    applySettings();
+                    showNotification(`Imported note "${importedNote.title}"!`, 'success');
+                } else {
+                    showNotification('Note from URL already exists.', 'info');
+                }
+
                 history.replaceState({}, document.title, window.location.pathname);
-                await saveData();
-                applySettings();
 
             } catch (err) {
-                console.error("URL Data Decryption/Import failed:", err);
-                showNotification('Could not load session from URL. Invalid data or password.', 'error');
+                console.error("URL Data Import failed:", err);
+                showNotification('Could not load note from URL. Invalid link or password.', 'error');
                 history.replaceState({}, document.title, window.location.pathname);
             }
         }
@@ -1323,67 +1362,81 @@
         }
         
         async function handleCopySession() {
-            const password = state.settings.sessionPassword;
+            showNotification('This function is for full backups. Use the "Share" button on a note for single sharing.', 'info');
+        }
+
+        async function handleShareNote() {
+            if (!state.currentNoteId) return;
+            const noteToShare = state.notes.find(n => n.id === state.currentNoteId);
+            if (!noteToShare) return;
+
+            let password = state.settings.sessionPassword;
+            let temporaryPassword = false;
             if (!password) {
-                showNotification('Please set a Session Password in Settings first.', 'error');
-                return;
+                password = Math.random().toString(36).substring(2, 10);
+                temporaryPassword = true;
             }
 
-            const notesToCopy = state.notes.slice(0, 3).map(note => {
-                const content = note.content.replace(/<img src="data:image[^>]+>/g, '[Image Data Removed]');
-                return {...note, content};
-            });
-            
-            const dataToEncrypt = JSON.stringify({ notes: notesToCopy });
-
             try {
+                const noteString = JSON.stringify(noteToShare);
+                const compressed = LZString.compressToUint8Array(noteString);
+
                 const salt = window.crypto.getRandomValues(new Uint8Array(16));
                 const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
                 const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt']);
                 const iv = window.crypto.getRandomValues(new Uint8Array(12));
-                const encodedData = new TextEncoder().encode(dataToEncrypt);
-                const encryptedContent = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData);
-                
+                const encryptedContent = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, compressed);
+
                 const combinedData = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
                 combinedData.set(salt, 0);
                 combinedData.set(iv, salt.length);
                 combinedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
-                
-                let binary = '';
-                const bytes = new Uint8Array(combinedData);
-                const len = bytes.byteLength;
-                for (let i = 0; i < len; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                const base64Data = window.btoa(binary);
+
+                const base64Data = btoa(String.fromCharCode.apply(null, combinedData));
+                const urlSafeBase64 = base64Data.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
                 const baseUrl = window.location.origin + window.location.pathname;
-                const sessionUrl = `${baseUrl}?sesh-ID=${encodeURIComponent(password)}&data=${encodeURIComponent(base64Data)}`;
+                const sessionUrl = `${baseUrl}?sesh-ID=${encodeURIComponent(password)}&data=${urlSafeBase64}`;
                 
-                if (sessionUrl.length > 2000) {
-                     showNotification('Session URL is too long to be copied! Try shorter notes.', 'error');
+                if (sessionUrl.length > 2048) {
+                     showNotification('Note is too large to share via URL, even with compression.', 'error');
                      return;
                 }
+                
+                // MODIFICATION: Clipboard copy fix
+                const textArea = document.createElement("textarea");
+                textArea.value = sessionUrl;
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showNotification('Share link copied to clipboard!', 'success');
+                } catch (err) {
+                    showNotification('Failed to copy link.', 'error');
+                }
+                document.body.removeChild(textArea);
 
-                navigator.clipboard.writeText(sessionUrl)
-                    .then(() => showNotification('Session URL copied to clipboard!', 'success'))
-                    .catch(() => showNotification('Failed to copy URL.', 'error'));
 
-                // MODIFICATION: Generate and show QR Code
                 DOMElements.qrCodeContainer.innerHTML = '';
-                const qr = qrcode(0, 'M'); // type 0, error correction 'M'
+                const qr = qrcode(0, 'M');
                 qr.addData(sessionUrl);
                 qr.make();
-                DOMElements.qrCodeContainer.innerHTML = qr.createImgTag(5, 4); // 5px modules, 4px margin
+                DOMElements.qrCodeContainer.innerHTML = qr.createImgTag(5, 10);
+                
+                if (temporaryPassword) {
+                    DOMElements.sharePasswordDisplay.innerHTML = `A temporary password has been created for this share: <br><strong class="text-lg text-yellow-400 font-mono">${password}</strong>`;
+                } else {
+                     DOMElements.sharePasswordDisplay.innerHTML = `Sharing with your saved session password.`;
+                }
+                
                 openModal(DOMElements.qrCodeModal);
 
-
             } catch (err) {
-                console.error("Session copy failed:", err);
-                showNotification('Failed to create session URL.', 'error');
+                console.error("Note sharing failed:", err);
+                showNotification('Failed to create share link.', 'error');
             }
         }
-
 
         function insertImageFile(file, editor) {
              if (file && file.type.startsWith('image/')) {
@@ -1538,8 +1591,6 @@
             DOMElements.archiveNoteBtn.title = note.archived ? 'Unarchive' : 'Archive';
             DOMElements.archiveNoteBtn.classList.toggle('bg-green-500', note.archived);
             DOMElements.archiveNoteBtn.classList.toggle('hover:bg-green-600', note.archived);
-            DOMElements.archiveNoteBtn.classList.toggle('bg-yellow-500', !note.archived);
-            DOMElements.archiveNoteBtn.classList.toggle('hover:bg-yellow-600', !note.archived);
 
             DOMElements.editNotePane.classList.add('is-open');
             DOMElements.modalOverlay.classList.remove('hidden');
