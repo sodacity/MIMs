@@ -1429,7 +1429,7 @@
         function handleClearLocalStorage() {
             openModal(DOMElements.confirmClearModal);
         }
-
+        
         async function handleShareNote() {
             await generateShareLink();
             openModal(DOMElements.qrCodeModal);
@@ -1476,8 +1476,14 @@
                 
                 if (DOMElements.secureSendToggle.checked) {
                     sessionUrl += '&secret=true';
+                    if (temporaryPassword) {
+                        DOMElements.sharePasswordDisplay.innerHTML = `A temporary password has been created for this share: <br><strong class="text-lg text-yellow-400 font-mono">${password}</strong>`;
+                    } else {
+                        DOMElements.sharePasswordDisplay.innerHTML = `Sharing with your saved session password. The receiver will be prompted to enter it.`;
+                    }
                 } else {
                     sessionUrl += `&sesh-ID=${encodeURIComponent(password)}`;
+                    DOMElements.sharePasswordDisplay.innerHTML = '';
                 }
                 
                 const textArea = document.createElement("textarea");
@@ -1498,12 +1504,6 @@
                 qr.addData(sessionUrl);
                 qr.make();
                 DOMElements.qrCodeContainer.innerHTML = qr.createImgTag(5, 10);
-                
-                if (temporaryPassword) {
-                    DOMElements.sharePasswordDisplay.innerHTML = `A temporary password has been created for this share: <br><strong class="text-lg text-yellow-400 font-mono">${password}</strong>`;
-                } else {
-                     DOMElements.sharePasswordDisplay.innerHTML = `Sharing with your saved session password.`;
-                }
 
             } catch (err) {
                 console.error("Note sharing failed:", err);
