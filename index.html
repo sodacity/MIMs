@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- MODIFICATION: Added QR Code generator library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -43,7 +45,7 @@
             padding: 1rem;
             border-radius: 0 0 0.5rem 0.5rem;
         }
-        .editor img, .editor iframe { max-width: 100%; height: auto; border-radius: 8px; }
+        .editor img, .editor iframe, .editor video { max-width: 100%; height: auto; border-radius: 8px; }
         .editor ul, .editor ol { padding-left: 2rem; }
         .editor ul { list-style: disc; }
         .editor ol { list-style: decimal; }
@@ -172,6 +174,11 @@
             border-radius: 9999px;
             transition: background-color 0.2s;
         }
+        #qr-code-container img {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
          @media (min-width: 768px) {
             #edit-note-pane {
                 width: 50%;
@@ -180,6 +187,22 @@
             #new-note-pane {
                  height: 60vh;
             }
+        }
+        /* Custom scrollbar for a modern look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #4a5568; /* gray-700 */
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #718096; /* gray-600 */
         }
     </style>
 </head>
@@ -393,7 +416,7 @@
                 </button>
             </div>
             <p class="text-gray-400 mb-4">Paste your HTML embed code below, or use the iFrame builder.</p>
-            <textarea id="embed-code-input" class="text-input-field w-full p-2 rounded h-32" placeholder="<iframe ...></iframe>"></textarea>
+            <textarea id="embed-code-input" class="text-input-field w-full p-2 rounded h-32" placeholder="<iframe ...></iframe> or <video ...>...</video>"></textarea>
             <div class="flex justify-end gap-4 mt-6">
                 <button id="cancel-embed-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
                 <button id="save-embed-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Save</button>
@@ -427,48 +450,54 @@
 
 
     <div id="settings-modal" class="hidden modal fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-xl z-50 w-11/12 max-w-md opacity-0 scale-95">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-6">
-                 <h2 class="text-2xl font-bold">Settings</h2>
-                 <div class="flex gap-2">
-                     <button id="import-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Import</button>
-                     <button id="export-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Export</button>
-                 </div>
-            </div>
-            <div class="space-y-4">
-                <div><label for="user-name-setting" class="block mb-2 font-semibold">User Name</label><input type="text" id="user-name-setting" class="text-input-field w-full p-2 rounded text-white"></div>
-                <div><label for="title-setting" class="block mb-2 font-semibold">App Title</label><input type="text" id="title-setting" class="text-input-field w-full p-2 rounded text-white"></div>
-                 <div><label for="footer-text-setting" class="block mb-2 font-semibold">Footer Text</label><input type="text" id="footer-text-setting" class="text-input-field w-full p-2 rounded text-white"></div>
-                 <div><label for="session-password-setting" class="block mb-2 font-semibold">Session Password (for secure export/import)</label><input type="password" id="session-password-setting" class="text-input-field w-full p-2 rounded text-white" placeholder="Set a password to secure backups"></div>
-                 <hr>
-                <div class="flex justify-between items-center"><label for="bg-color-setting" class="font-semibold">Background Color</label><input type="color" id="bg-color-setting"></div>
-                <div class="flex justify-between items-center"><label for="sidebar-color-setting" class="font-semibold">Sidebar Color</label><input type="color" id="sidebar-color-setting"></div>
-                <div class="flex justify-between items-center"><label for="font-color-setting" class="font-semibold">App Font Color</label><input type="color" id="font-color-setting"></div>
-                <div class="flex justify-between items-center"><label for="note-card-color-setting" class="font-semibold">Default Note Card Color</label><input type="color" id="note-card-color-setting"></div>
-                 <div class="flex justify-between items-center"><label for="note-card-opacity-setting" class="font-semibold">Note Card Transparency</label><input type="range" id="note-card-opacity-setting" min="0.1" max="1" step="0.05" class="w-1/2"></div>
-                <div class="flex justify-between items-center"><label for="modal-bg-color-setting" class="font-semibold">Pop Up Windows</label><input type="color" id="modal-bg-color-setting"></div>
-                <div class="flex justify-between items-center"><label for="modal-opacity-setting" class="font-semibold">Pop Up Transparency</label><input type="range" id="modal-opacity-setting" min="0.5" max="1" step="0.05" class="w-1/2"></div>
-                <div class="flex justify-between items-center"><label for="text-input-bg-color-setting" class="font-semibold">Text Input Fields</label><input type="color" id="text-input-bg-color-setting"></div>
-                <div class="flex justify-between items-center"><label for="text-input-font-color-setting" class="font-semibold">Text Input Font Color</label><input type="color" id="text-input-font-color-setting"></div>
-                 <hr>
-                 <div>
-                    <button id="copy-session-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Copy Session URL</button>
-                 </div>
-                 <hr>
-                <h3 class="text-lg font-semibold">Manage Shortcuts</h3>
-                <div id="shortcuts-manager" class="space-y-2"></div>
-                <div class="flex gap-2">
-                    <input type="text" id="new-shortcut-name" placeholder="Shortcut Name" class="text-input-field p-2 rounded w-1/2">
-                    <input type="text" id="new-shortcut-url" placeholder="Shortcut URL" class="text-input-field p-2 rounded w-1/2">
-                    <select id="new-shortcut-icon" class="text-input-field p-2 rounded bg-gray-700 text-white"></select>
-                    <button id="add-shortcut-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded">Add</button>
-                </div>
-                <hr>
-                <div>
-                     <button id="clear-storage-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Clear All Local Data</button>
+        <div class="p-6 flex flex-col max-h-[85vh]">
+            <div class="flex-shrink-0 mb-6">
+                <div class="flex justify-between items-center">
+                     <h2 class="text-2xl font-bold">Settings</h2>
+                     <div class="flex gap-2">
+                         <button id="import-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Import</button>
+                         <button id="export-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Export</button>
+                     </div>
                 </div>
             </div>
-            <div class="flex justify-end mt-8"><button id="close-settings" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Close</button></div>
+            <div class="flex-grow overflow-y-auto custom-scrollbar pr-4">
+                <div class="space-y-4">
+                    <div><label for="user-name-setting" class="block mb-2 font-semibold">User Name</label><input type="text" id="user-name-setting" class="text-input-field w-full p-2 rounded text-white"></div>
+                    <div><label for="title-setting" class="block mb-2 font-semibold">App Title</label><input type="text" id="title-setting" class="text-input-field w-full p-2 rounded text-white"></div>
+                     <div><label for="footer-text-setting" class="block mb-2 font-semibold">Footer Text</label><input type="text" id="footer-text-setting" class="text-input-field w-full p-2 rounded text-white"></div>
+                     <div><label for="session-password-setting" class="block mb-2 font-semibold">Session Password (for secure export/import)</label><input type="password" id="session-password-setting" class="text-input-field w-full p-2 rounded text-white" placeholder="Set a password to secure backups"></div>
+                     <hr>
+                    <div class="flex justify-between items-center"><label for="bg-color-setting" class="font-semibold">Background Color</label><input type="color" id="bg-color-setting"></div>
+                    <div class="flex justify-between items-center"><label for="sidebar-color-setting" class="font-semibold">Sidebar Color</label><input type="color" id="sidebar-color-setting"></div>
+                    <div class="flex justify-between items-center"><label for="font-color-setting" class="font-semibold">App Font Color</label><input type="color" id="font-color-setting"></div>
+                    <div class="flex justify-between items-center"><label for="note-card-color-setting" class="font-semibold">Default Note Card Color</label><input type="color" id="note-card-color-setting"></div>
+                     <div class="flex justify-between items-center"><label for="note-card-opacity-setting" class="font-semibold">Note Card Transparency</label><input type="range" id="note-card-opacity-setting" min="0.1" max="1" step="0.05" class="w-1/2"></div>
+                    <div class="flex justify-between items-center"><label for="modal-bg-color-setting" class="font-semibold">Pop Up Windows</label><input type="color" id="modal-bg-color-setting"></div>
+                    <div class="flex justify-between items-center"><label for="modal-opacity-setting" class="font-semibold">Pop Up Transparency</label><input type="range" id="modal-opacity-setting" min="0.5" max="1" step="0.05" class="w-1/2"></div>
+                    <div class="flex justify-between items-center"><label for="text-input-bg-color-setting" class="font-semibold">Text Input Fields</label><input type="color" id="text-input-bg-color-setting"></div>
+                    <div class="flex justify-between items-center"><label for="text-input-font-color-setting" class="font-semibold">Text Input Font Color</label><input type="color" id="text-input-font-color-setting"></div>
+                     <hr>
+                     <div>
+                        <button id="copy-session-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Copy Session URL & Show QR Code</button>
+                     </div>
+                     <hr>
+                    <h3 class="text-lg font-semibold">Manage Shortcuts</h3>
+                    <div id="shortcuts-manager" class="space-y-2"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-shortcut-name" placeholder="Shortcut Name" class="text-input-field p-2 rounded w-1/2">
+                        <input type="text" id="new-shortcut-url" placeholder="Shortcut URL" class="text-input-field p-2 rounded w-1/2">
+                        <select id="new-shortcut-icon" class="text-input-field p-2 rounded bg-gray-700 text-white"></select>
+                        <button id="add-shortcut-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded">Add</button>
+                    </div>
+                    <hr>
+                    <div>
+                         <button id="clear-storage-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Clear All Local Data</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-shrink-0 pt-6">
+                <div class="flex justify-end"><button id="close-settings" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Close</button></div>
+            </div>
         </div>
     </div>
 
@@ -496,6 +525,15 @@
                 <button id="cancel-email" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
                 <button id="send-email" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Send</button>
             </div>
+        </div>
+    </div>
+    
+    <!-- MODIFICATION: QR Code Modal -->
+    <div id="qr-code-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-xs p-6 text-center">
+            <h2 class="text-2xl font-bold mb-4">Scan Session QR Code</h2>
+            <div id="qr-code-container" class="flex justify-center"></div>
+            <button id="close-qr-code-modal" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full">Close</button>
         </div>
     </div>
 
@@ -596,6 +634,10 @@
             timeDisplay: document.getElementById('time-display'),
             recentNotesContainer: document.getElementById('recent-notes-container'),
             shortcutsGrid: document.getElementById('shortcuts-grid'),
+            // MODIFICATION: QR Code Modal elements
+            qrCodeModal: document.getElementById('qr-code-modal'),
+            qrCodeContainer: document.getElementById('qr-code-container'),
+            closeQrCodeModalBtn: document.getElementById('close-qr-code-modal'),
         };
 
         // --- App State ---
@@ -691,11 +733,13 @@
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = dirtyHTML;
 
-            const allowedTags = ['B', 'I', 'U', 'P', 'DIV', 'BR', 'UL', 'OL', 'LI', 'SPAN', 'IMG', 'IFRAME', 'A'];
+            const allowedTags = ['B', 'I', 'U', 'P', 'DIV', 'BR', 'UL', 'OL', 'LI', 'SPAN', 'IMG', 'IFRAME', 'A', 'VIDEO', 'SOURCE'];
             const allowedAttrs = {
                 'A': ['href', 'title', 'target'],
                 'IMG': ['src', 'style', 'alt', 'title', 'width', 'height'],
-                'IFRAME': ['src', 'width', 'height', 'style', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox']
+                'IFRAME': ['src', 'width', 'height', 'style', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox'],
+                'VIDEO': ['src', 'controls', 'width', 'height', 'autoplay', 'muted', 'loop', 'poster', 'style'],
+                'SOURCE': ['src', 'type']
             };
 
             const cleanNode = (node) => {
@@ -765,10 +809,10 @@
             DOMElements.sidebarFooter.innerText = settings.footerText;
 
             const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
-            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal].forEach(el => {
+            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal].forEach(el => {
                 if (el) {
                     const inner = el.firstElementChild;
-                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal')) {
+                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal' || el.id === 'qr-code-modal')) {
                         inner.style.backgroundColor = rgbaModalBg;
                     } else {
                         el.style.backgroundColor = rgbaModalBg;
@@ -989,6 +1033,10 @@
             
             DOMElements.closeWelcomeModalBtn.addEventListener('click', () => {
                 closeModal(DOMElements.welcomeModal);
+            });
+            
+            DOMElements.closeQrCodeModalBtn.addEventListener('click', () => {
+                closeModal(DOMElements.qrCodeModal);
             });
 
             DOMElements.newNoteBtn.addEventListener('click', openNewNotePane);
@@ -1321,6 +1369,15 @@
                     .then(() => showNotification('Session URL copied to clipboard!', 'success'))
                     .catch(() => showNotification('Failed to copy URL.', 'error'));
 
+                // MODIFICATION: Generate and show QR Code
+                DOMElements.qrCodeContainer.innerHTML = '';
+                const qr = qrcode(0, 'M'); // type 0, error correction 'M'
+                qr.addData(sessionUrl);
+                qr.make();
+                DOMElements.qrCodeContainer.innerHTML = qr.createImgTag(5, 4); // 5px modules, 4px margin
+                openModal(DOMElements.qrCodeModal);
+
+
             } catch (err) {
                 console.error("Session copy failed:", err);
                 showNotification('Failed to create session URL.', 'error');
@@ -1523,6 +1580,7 @@
                                  !DOMElements.embedModal.classList.contains('hidden') ||
                                  !DOMElements.iframeHelperModal.classList.contains('hidden') ||
                                  !DOMElements.welcomeModal.classList.contains('hidden') ||
+                                 !DOMElements.qrCodeModal.classList.contains('hidden') ||
                                  !DOMElements.confirmClearModal.classList.contains('hidden');
             
             const isSidebarOpen = !DOMElements.sidebar.classList.contains('-translate-x-full');
@@ -1553,6 +1611,7 @@
             closeModal(DOMElements.iframeHelperModal);
             closeModal(DOMElements.welcomeModal);
             closeModal(DOMElements.confirmClearModal);
+            closeModal(DOMElements.qrCodeModal);
             closeSidebarMobile();
         }
 
