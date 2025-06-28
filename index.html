@@ -90,7 +90,15 @@
             transition: background-color 0.3s, transform 0.2s;
         }
         .note-card:hover { transform: translateY(-5px); }
-        .note-card-title { font-weight: bold; margin-bottom: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .note-card-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+            flex-shrink: 0;
+        }
         .note-card-content { flex-grow: 1; overflow: hidden; font-size: 0.9rem; }
         .note-card-content * { color: inherit !important; }
         .sidebar-icon-btn { color: #9ca3af; transition: color 0.2s; }
@@ -376,15 +384,43 @@
         </div>
     </div>
     
-    <!-- NEW: Embed Modal -->
     <div id="embed-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
-            <h2 class="text-2xl font-bold mb-4">Embed Content</h2>
-            <p class="text-gray-400 mb-4">Paste your HTML embed code below (e.g., from YouTube, Vimeo).</p>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Embed Content</h2>
+                <button id="iframe-helper-btn" class="p-2 rounded-full hover:bg-gray-700" title="iFrame Builder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                </button>
+            </div>
+            <p class="text-gray-400 mb-4">Paste your HTML embed code below, or use the iFrame builder.</p>
             <textarea id="embed-code-input" class="text-input-field w-full p-2 rounded h-32" placeholder="<iframe ...></iframe>"></textarea>
             <div class="flex justify-end gap-4 mt-6">
                 <button id="cancel-embed-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
                 <button id="save-embed-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="iframe-helper-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h2 class="text-2xl font-bold mb-4">iFrame Builder</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="iframe-url" class="block mb-2 font-semibold">URL</label>
+                    <input type="url" id="iframe-url" class="text-input-field w-full p-2 rounded" placeholder="https://example.com">
+                </div>
+                 <div>
+                    <label for="iframe-width" class="block mb-2 font-semibold">Width</label>
+                    <input type="number" id="iframe-width" class="text-input-field w-full p-2 rounded" value="500">
+                </div>
+                 <div>
+                    <label for="iframe-height" class="block mb-2 font-semibold">Height</label>
+                    <input type="number" id="iframe-height" class="text-input-field w-full p-2 rounded" value="500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button id="cancel-iframe-helper-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                <button id="add-iframe-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Add</button>
             </div>
         </div>
     </div>
@@ -414,6 +450,10 @@
                 <div class="flex justify-between items-center"><label for="modal-opacity-setting" class="font-semibold">Pop Up Transparency</label><input type="range" id="modal-opacity-setting" min="0.5" max="1" step="0.05" class="w-1/2"></div>
                 <div class="flex justify-between items-center"><label for="text-input-bg-color-setting" class="font-semibold">Text Input Fields</label><input type="color" id="text-input-bg-color-setting"></div>
                 <div class="flex justify-between items-center"><label for="text-input-font-color-setting" class="font-semibold">Text Input Font Color</label><input type="color" id="text-input-font-color-setting"></div>
+                 <hr>
+                 <div>
+                    <button id="copy-session-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Copy Session URL</button>
+                 </div>
                  <hr>
                 <h3 class="text-lg font-semibold">Manage Shortcuts</h3>
                 <div id="shortcuts-manager" class="space-y-2"></div>
@@ -529,15 +569,23 @@
             addCannedResponseBtn: document.getElementById('add-canned-response'),
             sendEmailBtn: document.getElementById('send-email'),
             cancelEmailBtn: document.getElementById('cancel-email'),
-            // Embed Modal
+            // Embed Modals
             embedModal: document.getElementById('embed-modal'),
             embedCodeInput: document.getElementById('embed-code-input'),
             saveEmbedBtn: document.getElementById('save-embed-btn'),
             cancelEmbedBtn: document.getElementById('cancel-embed-btn'),
+            iframeHelperBtn: document.getElementById('iframe-helper-btn'),
+            iframeHelperModal: document.getElementById('iframe-helper-modal'),
+            iframeUrlInput: document.getElementById('iframe-url'),
+            iframeWidthInput: document.getElementById('iframe-width'),
+            iframeHeightInput: document.getElementById('iframe-height'),
+            addIframeBtn: document.getElementById('add-iframe-btn'),
+            cancelIframeHelperBtn: document.getElementById('cancel-iframe-helper-btn'),
             // Import/Export & Image
             importFileInput: document.getElementById('import-file-input'),
             imageUploadInput: document.getElementById('image-upload-input'),
             clearStorageBtn: document.getElementById('clear-storage-btn'),
+            copySessionBtn: document.getElementById('copy-session-btn'),
              // Dashboard
             dashboardView: document.getElementById('dashboard-view'),
             notesView: document.getElementById('notes-view'),
@@ -664,8 +712,15 @@
             DOMElements.sidebarFooter.innerText = settings.footerText;
 
             const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
-            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal].forEach(el => {
-                if (el) el.style.backgroundColor = rgbaModalBg;
+            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal].forEach(el => {
+                if (el) {
+                    const inner = el.firstElementChild;
+                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal')) {
+                        inner.style.backgroundColor = rgbaModalBg;
+                    } else {
+                        el.style.backgroundColor = rgbaModalBg;
+                    }
+                }
             });
 
             document.querySelectorAll('.text-input-field').forEach(el => {
@@ -794,14 +849,22 @@
              new Sortable(DOMElements.notesGrid, { animation: 150, ghostClass: 'sortable-ghost' });
         }
         
-        function checkFirstVisit() {
-            if (!localStorage.getItem('hasSeenWelcome')) {
-                openModal(DOMElements.welcomeModal);
-            }
-        }
-
-        function init() {
+        async function init() {
             loadData();
+            
+            const currentUrl = new URL(window.location.href);
+            const sessionPasswordFromUrl = currentUrl.searchParams.get('sesh-ID');
+            const dataFromUrl = currentUrl.searchParams.get('data');
+
+            if (sessionPasswordFromUrl) {
+                state.settings.sessionPassword = sessionPasswordFromUrl;
+                if (dataFromUrl) {
+                    await handleUrlDataImport(dataFromUrl, sessionPasswordFromUrl);
+                }
+                saveData();
+                showNotification('Session Password loaded from URL!', 'success');
+            }
+
             applySettings();
             renderAll();
             addEventListeners();
@@ -809,7 +872,10 @@
             setupToolbar(DOMElements.editToolbar, DOMElements.editNoteEditor);
             setInterval(updateTime, 1000);
             updateTime();
-            checkFirstVisit();
+            
+            if (!localStorage.getItem('hasSeenWelcome')) {
+                openModal(DOMElements.welcomeModal);
+            }
         }
 
         function updateTime() {
@@ -889,12 +955,16 @@
             
             DOMElements.saveEmbedBtn.addEventListener('click', handleSaveEmbed);
             DOMElements.cancelEmbedBtn.addEventListener('click', () => closeModal(DOMElements.embedModal));
+            DOMElements.iframeHelperBtn.addEventListener('click', () => openModal(DOMElements.iframeHelperModal));
+            DOMElements.addIframeBtn.addEventListener('click', handleAddIframe);
+            DOMElements.cancelIframeHelperBtn.addEventListener('click', () => closeModal(DOMElements.iframeHelperModal));
 
 
             if (DOMElements.settingsModal) {
                  DOMElements.settingsModal.querySelector('#close-settings').addEventListener('click', () => closeModal(DOMElements.settingsModal));
                  DOMElements.settingsModal.querySelector('#import-btn').addEventListener('click', () => DOMElements.importFileInput.click());
                  DOMElements.settingsModal.querySelector('#export-btn').addEventListener('click', handleExport);
+                 DOMElements.copySessionBtn.addEventListener('click', handleCopySession);
                  DOMElements.clearStorageBtn.addEventListener('click', handleClearLocalStorage);
                  const settingsInputs = [
                     { el: DOMElements.settingsModal.querySelector('#user-name-setting'), key: 'userName' },
@@ -1089,9 +1159,104 @@
             reader.readAsArrayBuffer(file);
         }
 
+        async function handleUrlDataImport(dataFromUrl, password) {
+            try {
+                // Base64 decode --> ArrayBuffer
+                const binary_string = window.atob(dataFromUrl);
+                const len = binary_string.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binary_string.charCodeAt(i);
+                }
+                const combinedData = bytes.buffer;
+
+                const salt = combinedData.slice(0, 16);
+                const iv = combinedData.slice(16, 28);
+                const encryptedContent = combinedData.slice(28);
+
+                const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+                const decryptedContent = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encryptedContent);
+
+                const decodedString = new TextDecoder().decode(decryptedContent);
+                const importedState = JSON.parse(decodedString);
+                
+                const existingNoteIds = new Set(state.notes.map(n => n.id));
+                const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
+                state.notes.unshift(...newNotes); // Add to the beginning
+                
+                showNotification(`Imported ${newNotes.length} notes from URL!`, 'success');
+                history.replaceState({}, document.title, window.location.pathname); // Clean URL
+                saveData();
+                applySettings();
+
+            } catch (err) {
+                console.error("URL Data Decryption/Import failed:", err);
+                showNotification('Could not load session from URL. Invalid data or password.', 'error');
+                history.replaceState({}, document.title, window.location.pathname); // Clean URL on failure too
+            }
+        }
+
+
         function handleClearLocalStorage() {
             openModal(DOMElements.confirmClearModal);
         }
+        
+        async function handleCopySession() {
+            const password = state.settings.sessionPassword;
+            if (!password) {
+                showNotification('Please set a Session Password in Settings first.', 'error');
+                return;
+            }
+
+            const notesToCopy = state.notes.slice(0, 3).map(note => {
+                // Strip out image data to keep URL small
+                const content = note.content.replace(/<img src="data:image[^>]+>/g, '[Image Data Removed]');
+                return {...note, content};
+            });
+            
+            const dataToEncrypt = JSON.stringify({ notes: notesToCopy });
+
+            try {
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encodedData = new TextEncoder().encode(dataToEncrypt);
+                const encryptedContent = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData);
+                
+                const combinedData = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
+                combinedData.set(salt, 0);
+                combinedData.set(iv, salt.length);
+                combinedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
+                
+                // Convert ArrayBuffer to Base64
+                let binary = '';
+                const bytes = new Uint8Array(combinedData);
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                const base64Data = window.btoa(binary);
+
+                const baseUrl = window.location.origin + window.location.pathname;
+                const sessionUrl = `${baseUrl}?sesh-ID=${encodeURIComponent(password)}&data=${encodeURIComponent(base64Data)}`;
+                
+                if (sessionUrl.length > 2000) {
+                     showNotification('Session URL is too long to be copied! Try shorter notes.', 'error');
+                     return;
+                }
+
+                navigator.clipboard.writeText(sessionUrl)
+                    .then(() => showNotification('Session URL copied to clipboard!', 'success'))
+                    .catch(() => showNotification('Failed to copy URL.', 'error'));
+
+            } catch (err) {
+                console.error("Session copy failed:", err);
+                showNotification('Failed to create session URL.', 'error');
+            }
+        }
+
 
         function insertImageFile(file, editor) {
              if (file && file.type.startsWith('image/')) {
@@ -1128,6 +1293,19 @@
                 document.execCommand('insertHTML', false, sanitizedCode);
                 closeModal(DOMElements.embedModal);
                 DOMElements.embedCodeInput.value = '';
+            }
+        }
+
+        function handleAddIframe() {
+            const url = DOMElements.iframeUrlInput.value;
+            const width = DOMElements.iframeWidthInput.value;
+            const height = DOMElements.iframeHeightInput.value;
+            if (url) {
+                const iframeHTML = `<iframe src="${url}" width="${width}" height="${height}" style="border:0;" allowfullscreen="" loading="lazy"></iframe>`;
+                DOMElements.embedCodeInput.value = iframeHTML;
+                closeModal(DOMElements.iframeHelperModal);
+            } else {
+                showNotification('URL is required to build an iFrame.', 'error');
             }
         }
         
@@ -1272,6 +1450,7 @@
                                  !DOMElements.settingsModal.classList.contains('hidden') ||
                                  !DOMElements.emailModal.classList.contains('hidden') ||
                                  !DOMElements.embedModal.classList.contains('hidden') ||
+                                 !DOMElements.iframeHelperModal.classList.contains('hidden') ||
                                  !DOMElements.welcomeModal.classList.contains('hidden') ||
                                  !DOMElements.confirmClearModal.classList.contains('hidden');
             
@@ -1300,6 +1479,7 @@
             closeModal(DOMElements.settingsModal);
             closeModal(DOMElements.emailModal);
             closeModal(DOMElements.embedModal);
+            closeModal(DOMElements.iframeHelperModal);
             closeModal(DOMElements.welcomeModal);
             closeModal(DOMElements.confirmClearModal);
             closeSidebarMobile();
@@ -1452,7 +1632,7 @@
             if(!manager || !iconSelect) return;
 
             manager.innerHTML = '';
-            const icons = ['🔗', '📝', '💼', '🏠', '⭐️', '❤️', '⚙️', '📊'];
+            const icons = ['🔗', '�', '💼', '🏠', '⭐️', '❤️', '⚙️', '📊'];
             iconSelect.innerHTML = icons.map(i => `<option value="${i}">${i}</option>`).join('');
 
             state.settings.customLinks.forEach(link => {
