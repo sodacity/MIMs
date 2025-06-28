@@ -28,16 +28,44 @@
         #notification {
             transition: opacity 0.5s, transform 0.5s;
         }
+        .editor-container {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0; /* CRITICAL FIX for flexbox scrolling */
+        }
         .editor {
-            flex-grow: 1; /* Allow editor to take up space */
+            flex-grow: 1;
             overflow-y: auto;
             outline: none;
             transition: background-color 0.3s;
+            padding: 1rem;
+            border-radius: 0 0 0.5rem 0.5rem;
         }
-        .editor img { max-width: 100%; height: auto; border-radius: 8px; }
+        .editor img, .editor iframe { max-width: 100%; height: auto; border-radius: 8px; }
         .editor ul, .editor ol { padding-left: 2rem; }
         .editor ul { list-style: disc; }
         .editor ol { list-style: decimal; }
+        .drop-zone-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 150, 255, 0.2);
+            border: 2px dashed #0096ff;
+            border-radius: 8px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .drop-zone-active .drop-zone-overlay {
+            display: flex;
+        }
         .toolbar-btn {
             background-color: transparent; border: 1px solid #4a5568; border-radius: 4px;
             color: white; padding: 0.25rem 0.75rem; transition: background-color 0.2s;
@@ -230,7 +258,7 @@
             <div class="text-left space-y-4 mb-8">
                 <p><strong><span class="text-blue-400">Your Personal Interpreter:</span></strong> MiMs helps you capture, organize, and interpret your thoughts and ideas effortlessly.</p>
                 <p><strong><span class="text-green-400">Secure & Private:</span></strong> Your data is stored locally on your device, not on a server. You have full control.</p>
-                <p><strong><span class="text-yellow-400">Export Your Data:</span></strong> You can export all your notes and settings into a secure `.mim` file at any time.</p>
+                <p><strong><span class="text-yellow-400">Securely Export Your Data:</span></strong> You can export all your notes and settings into a secure, encrypted `.mim` file at any time using a password you set.</p>
             </div>
             <button id="close-welcome-modal" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full">Get Started</button>
         </div>
@@ -263,9 +291,16 @@
                  <button class="toolbar-btn" data-command="insertImage" title="Insert Image"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
                 <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
+                <button class="toolbar-btn" data-command="insertEmbed" title="Embed HTML"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
             </div>
-            <div id="edit-note-editor" contenteditable="true" class="editor w-full p-4 rounded-b-lg text-white"></div>
+            <div class="editor-container">
+                <div id="edit-note-editor" contenteditable="true" class="editor w-full text-white"></div>
+                <div class="drop-zone-overlay">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <p class="text-2xl font-bold text-white mt-2">DROP IMAGE HERE</p>
+                </div>
+            </div>
             <div class="mt-auto pt-4 flex-shrink-0">
                 <div class="flex items-center gap-4">
                     <label for="edit-note-label" class="font-semibold">Tag:</label>
@@ -295,8 +330,8 @@
     <div id="new-note-pane" class="bg-gray-800 shadow-2xl flex flex-col relative">
         <div id="bottom-resize-handle" class="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-2 bg-gray-600 rounded-full cursor-ns-resize hidden md:block"></div>
         <div class="p-4 md:p-6 pt-8 flex flex-col h-full w-full overflow-hidden">
-            <input type="text" id="new-note-title" placeholder="Note Title" class="text-input-field text-2xl font-bold p-3 rounded-md focus:outline-none w-full text-white placeholder-gray-300 mb-4">
-            <div id="new-note-toolbar" class="flex items-center gap-1 p-2 bg-gray-900 bg-opacity-50 rounded-t-lg border-b border-gray-600 flex-wrap">
+            <input type="text" id="new-note-title" placeholder="Note Title" class="text-input-field text-2xl font-bold p-3 rounded-md focus:outline-none w-full text-white placeholder-gray-300 mb-4 flex-shrink-0">
+            <div id="new-note-toolbar" class="flex items-center gap-1 p-2 bg-gray-900 bg-opacity-50 rounded-t-lg border-b border-gray-600 flex-wrap flex-shrink-0">
                  <button class="toolbar-btn" data-command="bold" title="Bold"><b>B</b></button>
                 <button class="toolbar-btn" data-command="italic" title="Italic"><i>I</i></button>
                 <button class="toolbar-btn" data-command="underline" title="Underline"><u>U</u></button>
@@ -304,10 +339,17 @@
                  <button class="toolbar-btn" data-command="insertImage" title="Insert Image"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
                  <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
+                 <button class="toolbar-btn" data-command="insertEmbed" title="Embed HTML"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
             </div>
-            <div id="new-note-editor" contenteditable="true" class="editor w-full p-4 rounded-b-lg text-white"></div>
-            <div class="mt-auto pt-4">
+            <div class="editor-container">
+                <div id="new-note-editor" contenteditable="true" class="editor w-full text-white"></div>
+                <div class="drop-zone-overlay">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <p class="text-2xl font-bold text-white mt-2">DROP IMAGE HERE</p>
+                </div>
+            </div>
+            <div class="mt-auto pt-4 flex-shrink-0">
                  <div class="flex items-center gap-4">
                     <label for="new-note-label" class="font-semibold">Tag:</label>
                     <input type="text" id="new-note-label" list="labels-datalist" class="text-input-field p-2 rounded text-white w-1/3 bg-white bg-opacity-20">
@@ -333,6 +375,20 @@
             <div class="mt-4 max-h-48 overflow-y-auto" id="calendar-notes-list"></div>
         </div>
     </div>
+    
+    <!-- NEW: Embed Modal -->
+    <div id="embed-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Embed Content</h2>
+            <p class="text-gray-400 mb-4">Paste your HTML embed code below (e.g., from YouTube, Vimeo).</p>
+            <textarea id="embed-code-input" class="text-input-field w-full p-2 rounded h-32" placeholder="<iframe ...></iframe>"></textarea>
+            <div class="flex justify-end gap-4 mt-6">
+                <button id="cancel-embed-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                <button id="save-embed-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Save</button>
+            </div>
+        </div>
+    </div>
+
 
     <div id="settings-modal" class="hidden modal fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-xl z-50 w-11/12 max-w-md opacity-0 scale-95">
         <div class="p-6">
@@ -347,6 +403,8 @@
                 <div><label for="user-name-setting" class="block mb-2 font-semibold">User Name</label><input type="text" id="user-name-setting" class="text-input-field w-full p-2 rounded text-white"></div>
                 <div><label for="title-setting" class="block mb-2 font-semibold">App Title</label><input type="text" id="title-setting" class="text-input-field w-full p-2 rounded text-white"></div>
                  <div><label for="footer-text-setting" class="block mb-2 font-semibold">Footer Text</label><input type="text" id="footer-text-setting" class="text-input-field w-full p-2 rounded text-white"></div>
+                 <div><label for="session-password-setting" class="block mb-2 font-semibold">Session Password (for secure export/import)</label><input type="password" id="session-password-setting" class="text-input-field w-full p-2 rounded text-white" placeholder="Set a password to secure backups"></div>
+                 <hr>
                 <div class="flex justify-between items-center"><label for="bg-color-setting" class="font-semibold">Background Color</label><input type="color" id="bg-color-setting"></div>
                 <div class="flex justify-between items-center"><label for="sidebar-color-setting" class="font-semibold">Sidebar Color</label><input type="color" id="sidebar-color-setting"></div>
                 <div class="flex justify-between items-center"><label for="font-color-setting" class="font-semibold">App Font Color</label><input type="color" id="font-color-setting"></div>
@@ -471,6 +529,11 @@
             addCannedResponseBtn: document.getElementById('add-canned-response'),
             sendEmailBtn: document.getElementById('send-email'),
             cancelEmailBtn: document.getElementById('cancel-email'),
+            // Embed Modal
+            embedModal: document.getElementById('embed-modal'),
+            embedCodeInput: document.getElementById('embed-code-input'),
+            saveEmbedBtn: document.getElementById('save-embed-btn'),
+            cancelEmbedBtn: document.getElementById('cancel-embed-btn'),
             // Import/Export & Image
             importFileInput: document.getElementById('import-file-input'),
             imageUploadInput: document.getElementById('image-upload-input'),
@@ -493,7 +556,8 @@
             title: 'Notes', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
             noteCardColor: '#000000', noteCardOpacity: 0.7, modalBgColor: '#000000',
             textInputBgColor: '#ffffff', textInputFontColor: '#000000',
-            footerText: 'MiMs 1.0', modalOpacity: 0.95, userName: 'User', customLinks: []
+            footerText: 'MiMs 1.0', modalOpacity: 0.95, userName: 'User', customLinks: [],
+            sessionPassword: ''
         };
 
         // --- Data Management ---
@@ -520,6 +584,59 @@
             localStorage.setItem('cannedResponses', JSON.stringify(state.cannedResponses));
             renderAll();
         }
+        
+        // --- HTML Sanitizer ---
+        function sanitizeHTML(dirtyHTML) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = dirtyHTML;
+
+            const allowedTags = ['B', 'I', 'U', 'P', 'DIV', 'BR', 'UL', 'OL', 'LI', 'SPAN', 'IMG', 'IFRAME', 'A'];
+            const allowedAttrs = {
+                'A': ['href', 'title', 'target'],
+                'IMG': ['src', 'style', 'alt', 'title', 'width', 'height'],
+                'IFRAME': ['src', 'width', 'height', 'style', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox']
+            };
+
+            const cleanNode = (node) => {
+                if (node.nodeType === 3) return node.cloneNode(); // Text node
+                if (node.nodeType !== 1) return null; // Not an element node
+                
+                const tagName = node.tagName.toUpperCase();
+                if (!allowedTags.includes(tagName)) return null;
+
+                const newNode = document.createElement(node.tagName);
+                const tagAllowedAttrs = allowedAttrs[tagName] || [];
+
+                for (const attr of node.attributes) {
+                    if (tagAllowedAttrs.includes(attr.name.toLowerCase()) && !attr.name.startsWith('on')) {
+                         if (attr.name === 'src' || attr.name === 'href') {
+                             if (!attr.value.startsWith('http:') && !attr.value.startsWith('https:') && !attr.value.startsWith('data:')) {
+                                continue;
+                             }
+                         }
+                        newNode.setAttribute(attr.name, attr.value);
+                    }
+                }
+                
+                for(const child of node.childNodes){
+                    const cleanChild = cleanNode(child);
+                    if(cleanChild) newNode.appendChild(cleanChild);
+                }
+
+                return newNode;
+            }
+
+            const fragment = document.createDocumentFragment();
+            for(const child of tempDiv.childNodes) {
+                const cleanChild = cleanNode(child);
+                if (cleanChild) fragment.appendChild(cleanChild);
+            }
+            
+            const cleanDiv = document.createElement('div');
+            cleanDiv.appendChild(fragment);
+            return cleanDiv.innerHTML;
+        }
+
 
         // --- Rendering & UI ---
          function hexToRgba(hex, alpha) {
@@ -547,7 +664,7 @@
             DOMElements.sidebarFooter.innerText = settings.footerText;
 
             const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
-            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal].forEach(el => {
+            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal].forEach(el => {
                 if (el) el.style.backgroundColor = rgbaModalBg;
             });
 
@@ -563,6 +680,7 @@
                 settingsModal.querySelector('#user-name-setting').value = settings.userName;
                 settingsModal.querySelector('#title-setting').value = settings.title;
                 settingsModal.querySelector('#footer-text-setting').value = settings.footerText;
+                settingsModal.querySelector('#session-password-setting').value = settings.sessionPassword || '';
                 settingsModal.querySelector('#bg-color-setting').value = settings.bgColor;
                 settingsModal.querySelector('#sidebar-color-setting').value = settings.sidebarColor;
                 settingsModal.querySelector('#font-color-setting').value = settings.fontColor;
@@ -582,12 +700,10 @@
         }
 
         function renderDashboard() {
-            // Greeting
             const hour = new Date().getHours();
             const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
             DOMElements.greetingText.textContent = `${greeting}, ${state.settings.userName}!`;
 
-            // Recent Notes
             const recentNotes = state.notes.filter(n => !n.archived).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5);
             DOMElements.recentNotesContainer.innerHTML = '';
             recentNotes.forEach(note => {
@@ -602,7 +718,6 @@
                 DOMElements.recentNotesContainer.appendChild(card);
             });
 
-            // Shortcuts
             renderShortcuts();
         }
 
@@ -771,15 +886,21 @@
 
             DOMElements.calendarBtn.addEventListener('click', () => { renderCalendar(); openModal(DOMElements.calendarModal); });
             DOMElements.settingsBtn.addEventListener('click', () => { applySettings(); openModal(DOMElements.settingsModal); });
+            
+            DOMElements.saveEmbedBtn.addEventListener('click', handleSaveEmbed);
+            DOMElements.cancelEmbedBtn.addEventListener('click', () => closeModal(DOMElements.embedModal));
+
+
             if (DOMElements.settingsModal) {
                  DOMElements.settingsModal.querySelector('#close-settings').addEventListener('click', () => closeModal(DOMElements.settingsModal));
-                 DOMElements.settingsModal.querySelector('#import-btn').addEventListener('click', handleImport);
+                 DOMElements.settingsModal.querySelector('#import-btn').addEventListener('click', () => DOMElements.importFileInput.click());
                  DOMElements.settingsModal.querySelector('#export-btn').addEventListener('click', handleExport);
                  DOMElements.clearStorageBtn.addEventListener('click', handleClearLocalStorage);
                  const settingsInputs = [
                     { el: DOMElements.settingsModal.querySelector('#user-name-setting'), key: 'userName' },
                     { el: DOMElements.settingsModal.querySelector('#title-setting'), key: 'title' },
                     { el: DOMElements.settingsModal.querySelector('#footer-text-setting'), key: 'footerText' },
+                    { el: DOMElements.settingsModal.querySelector('#session-password-setting'), key: 'sessionPassword' },
                     { el: DOMElements.settingsModal.querySelector('#bg-color-setting'), key: 'bgColor' },
                     { el: DOMElements.settingsModal.querySelector('#sidebar-color-setting'), key: 'sidebarColor' },
                     { el: DOMElements.settingsModal.querySelector('#font-color-setting'), key: 'fontColor' },
@@ -831,11 +952,25 @@
             DOMElements.addCannedResponseBtn.addEventListener('click', handleAddCannedResponse);
             DOMElements.sendEmailBtn.addEventListener('click', handleSendEmail);
             DOMElements.imageUploadInput.addEventListener('change', handleImageUpload);
+            DOMElements.importFileInput.addEventListener('change', handleImport);
+            
+            [DOMElements.editNoteEditor, DOMElements.newNoteEditor].forEach(editor => {
+                 const container = editor.closest('.editor-container');
+                 container.addEventListener('dragenter', e => { e.stopPropagation(); e.preventDefault(); container.classList.add('drop-zone-active'); });
+                 container.addEventListener('dragover', e => { e.stopPropagation(); e.preventDefault(); });
+                 container.addEventListener('dragleave', e => { e.stopPropagation(); e.preventDefault(); if (e.relatedTarget === null || !container.contains(e.relatedTarget)) { container.classList.remove('drop-zone-active'); }});
+                 container.addEventListener('drop', e => {
+                     e.stopPropagation();
+                     e.preventDefault();
+                     container.classList.remove('drop-zone-active');
+                     handleImageDrop(e.dataTransfer.files, editor);
+                 });
+            });
         }
 
         function handleSaveNewNote() {
             const title = DOMElements.newNoteTitleInput.value || 'Untitled Note';
-            const content = DOMElements.newNoteEditor.innerHTML;
+            const content = sanitizeHTML(DOMElements.newNoteEditor.innerHTML);
             const label = DOMElements.newNoteLabelInput.value.trim();
             const color = DOMElements.newNoteCardColorInput.value;
             const now = new Date().toISOString();
@@ -849,7 +984,7 @@
             if (!state.currentNoteId) return;
             const note = state.notes.find(n => n.id === state.currentNoteId);
             note.title = DOMElements.editNoteTitleInput.value;
-            note.content = DOMElements.editNoteEditor.innerHTML;
+            note.content = sanitizeHTML(DOMElements.editNoteEditor.innerHTML);
             note.label = DOMElements.editNoteLabelInput.value.trim();
             note.color = DOMElements.editNoteCardColorInput.value;
             note.updatedAt = new Date().toISOString();
@@ -876,86 +1011,124 @@
              showNotification(note.archived ? 'Note archived.' : 'Note unarchived.');
         }
 
-        function handleExport() {
-            const dataStr = JSON.stringify({
-                notes: state.notes,
-                settings: state.settings,
-                cannedResponses: state.cannedResponses
-            });
-            const encodedData = btoa(dataStr);
-            const blob = new Blob([encodedData], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `${state.settings.title.replace(/\s/g, '-')}-Export.mim`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            showNotification('App data exported!');
+        async function handleExport() {
+            const password = state.settings.sessionPassword;
+            if (!password) {
+                showNotification('Please set a Session Password in Settings before exporting.', 'error');
+                return;
+            }
+            const settingsForExport = { ...state.settings };
+            delete settingsForExport.sessionPassword;
+            const dataToEncrypt = JSON.stringify({ notes: state.notes, settings: settingsForExport, cannedResponses: state.cannedResponses });
+            try {
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encodedData = new TextEncoder().encode(dataToEncrypt);
+                const encryptedContent = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData);
+                const combinedData = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
+                combinedData.set(salt, 0);
+                combinedData.set(iv, salt.length);
+                combinedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
+                const blob = new Blob([combinedData], { type: 'application/octet-stream' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${state.settings.title.replace(/\s/g, '-')}-Export.mim`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showNotification('Secure data exported successfully!');
+            } catch (err) {
+                console.error("Encryption failed:", err);
+                showNotification('Export failed due to an encryption error.', 'error');
+            }
         }
-
-        function handleImport() {
-            DOMElements.importFileInput.click();
-            DOMElements.importFileInput.onchange = e => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const encodedString = event.target.result;
-                        const decodedString = atob(encodedString);
-                        const importedState = JSON.parse(decodedString);
-                        
-                        // Merge notes
-                        const existingNoteIds = new Set(state.notes.map(n => n.id));
-                        const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
-                        state.notes.push(...newNotes);
-
-                        // Merge canned responses
-                        const existingResponses = new Set(state.cannedResponses.map(r => r.name));
-                        if (Array.isArray(importedState.cannedResponses)) {
-                            importedState.cannedResponses.forEach(r => {
-                                if (!existingResponses.has(r.name)) {
-                                    state.cannedResponses.push(r);
-                                }
-                            });
-                        }
-
-                        // Merge settings
-                        state.settings = { ...defaultSettings, ...importedState.settings };
-
-                        saveData();
-                        applySettings();
-                        showNotification(`${newNotes.length} notes imported successfully!`);
-                    } catch (err) {
-                        console.error('Error parsing imported file:', err);
-                        showNotification('Invalid or corrupted import file.', 'error');
-                    }
-                };
-                reader.readAsText(file);
-                // Reset file input
+        function handleImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const password = state.settings.sessionPassword;
+            if (!password) {
+                showNotification('Please enter your Session Password in Settings before importing.', 'error');
                 DOMElements.importFileInput.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const combinedData = new Uint8Array(event.target.result);
+                    const salt = combinedData.slice(0, 16);
+                    const iv = combinedData.slice(16, 28);
+                    const encryptedContent = combinedData.slice(28);
+                    const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                    const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+                    const decryptedContent = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encryptedContent);
+                    const decodedString = new TextDecoder().decode(decryptedContent);
+                    const importedState = JSON.parse(decodedString);
+                    const existingNoteIds = new Set(state.notes.map(n => n.id));
+                    const newNotes = importedState.notes.filter(n => !existingNoteIds.has(n.id));
+                    state.notes.push(...newNotes);
+                    const existingResponses = new Set(state.cannedResponses.map(r => r.name));
+                    if (Array.isArray(importedState.cannedResponses)) {
+                        importedState.cannedResponses.forEach(r => {
+                            if (!existingResponses.has(r.name)) { state.cannedResponses.push(r); }
+                        });
+                    }
+                    const currentPassword = state.settings.sessionPassword;
+                    state.settings = { ...defaultSettings, ...importedState.settings, sessionPassword: currentPassword };
+                    saveData();
+                    applySettings();
+                    showNotification(`${newNotes.length} notes imported successfully!`);
+                } catch (err) {
+                    console.error("Decryption/Import failed:", err);
+                    showNotification('Import failed: Invalid password or corrupted file.', 'error');
+                } finally {
+                     DOMElements.importFileInput.value = '';
+                }
             };
+            reader.readAsArrayBuffer(file);
         }
-        
+
         function handleClearLocalStorage() {
             openModal(DOMElements.confirmClearModal);
         }
 
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (file && state.activeEditor) {
+        function insertImageFile(file, editor) {
+             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const dataUrl = e.target.result;
-                    const img = `<img src="${dataUrl}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
-                    state.activeEditor.focus();
-                    document.execCommand('insertHTML', false, img);
+                    const imgHTML = `<img src="${dataUrl}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+                    editor.focus();
+                    document.execCommand('insertHTML', false, imgHTML);
                 };
                 reader.readAsDataURL(file);
             }
-            // Reset file input to allow uploading the same file again
+        }
+        
+        function handleImageDrop(files, editor) {
+            state.activeEditor = editor;
+            if (files.length > 0) {
+                insertImageFile(files[0], editor);
+            }
+        }
+
+        function handleImageUpload(event) {
+            if (event.target.files.length > 0) {
+                 insertImageFile(event.target.files[0], state.activeEditor);
+            }
             event.target.value = '';
+        }
+
+        function handleSaveEmbed() {
+            const embedCode = DOMElements.embedCodeInput.value;
+            if (embedCode && state.activeEditor) {
+                const sanitizedCode = sanitizeHTML(embedCode);
+                state.activeEditor.focus();
+                document.execCommand('insertHTML', false, sanitizedCode);
+                closeModal(DOMElements.embedModal);
+                DOMElements.embedCodeInput.value = '';
+            }
         }
         
         function handleAddCannedResponse() {
@@ -1098,6 +1271,7 @@
                                  !DOMElements.calendarModal.classList.contains('hidden') ||
                                  !DOMElements.settingsModal.classList.contains('hidden') ||
                                  !DOMElements.emailModal.classList.contains('hidden') ||
+                                 !DOMElements.embedModal.classList.contains('hidden') ||
                                  !DOMElements.welcomeModal.classList.contains('hidden') ||
                                  !DOMElements.confirmClearModal.classList.contains('hidden');
             
@@ -1125,6 +1299,7 @@
             closeModal(DOMElements.calendarModal);
             closeModal(DOMElements.settingsModal);
             closeModal(DOMElements.emailModal);
+            closeModal(DOMElements.embedModal);
             closeModal(DOMElements.welcomeModal);
             closeModal(DOMElements.confirmClearModal);
             closeSidebarMobile();
@@ -1143,6 +1318,8 @@
                     openEmailModal();
                 } else if (command === 'insertImage') {
                     DOMElements.imageUploadInput.click();
+                } else if (command === 'insertEmbed') {
+                    openModal(DOMElements.embedModal);
                 } else if (command) {
                     document.execCommand(command, false, target.value || null);
                 }
@@ -1189,7 +1366,7 @@
             setTimeout(() => {
                 notification.classList.add('opacity-0', 'translate-y-2');
                 setTimeout(() => notification.classList.add('hidden'), 500);
-            }, 2000);
+            }, 3000);
         }
 
         function renderCalendar() {
