@@ -492,10 +492,6 @@
                     <div class="flex justify-between items-center"><label for="text-input-bg-color-setting" class="font-semibold">Text Input Fields</label><input type="color" id="text-input-bg-color-setting"></div>
                     <div class="flex justify-between items-center"><label for="text-input-font-color-setting" class="font-semibold">Text Input Font Color</label><input type="color" id="text-input-font-color-setting"></div>
                      <hr>
-                     <div>
-                        <button id="copy-session-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Copy Full Session URL</button>
-                     </div>
-                     <hr>
                     <h3 class="text-lg font-semibold">Manage Shortcuts</h3>
                     <div id="shortcuts-manager" class="space-y-2"></div>
                     <div class="flex gap-2">
@@ -547,8 +543,9 @@
         <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 text-center">
             <h2 class="text-2xl font-bold mb-4">Share Note</h2>
             <div id="qr-code-container" class="flex justify-center bg-white p-4 rounded-lg"></div>
-            <div id="share-password-display" class="mt-4 text-sm"></div>
-             <div class="mt-4">
+            <div id="share-info" class="mt-4 text-sm text-gray-400"></div>
+            <div id="share-password-display" class="mt-2 text-sm"></div>
+            <div class="mt-4">
                 <label class="flex items-center justify-center cursor-pointer">
                     <span class="mr-3 font-semibold">Require Password on Open</span>
                     <div class="relative">
@@ -558,7 +555,10 @@
                     </div>
                 </label>
             </div>
-            <button id="close-qr-code-modal" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full">Close</button>
+            <div class="mt-6 flex justify-center gap-4">
+                <button id="export-note-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Export as .mim</button>
+                <button id="close-qr-code-modal" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Close</button>
+            </div>
         </div>
     </div>
 
@@ -663,9 +663,11 @@
             // QR Code Modal elements
             qrCodeModal: document.getElementById('qr-code-modal'),
             qrCodeContainer: document.getElementById('qr-code-container'),
+            shareInfo: document.getElementById('share-info'),
             sharePasswordDisplay: document.getElementById('share-password-display'),
             closeQrCodeModalBtn: document.getElementById('close-qr-code-modal'),
             secureSendToggle: document.getElementById('secure-send-toggle'),
+            exportNoteBtn: document.getElementById('export-note-btn'),
         };
 
         // --- App State ---
@@ -760,28 +762,33 @@
         function sanitizeHTML(dirtyHTML) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = dirtyHTML;
-
-            const allowedTags = ['B', 'I', 'U', 'P', 'DIV', 'BR', 'UL', 'OL', 'LI', 'SPAN', 'IMG', 'IFRAME', 'A', 'VIDEO', 'SOURCE'];
+            const allowedTags = [
+                'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'P', 'A', 'UL', 'OL', 'LI', 'B', 'I', 'STRONG', 'EM', 'U', 'BR', 'DIV', 'SPAN', 
+                'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'IMG', 'VIDEO', 'SOURCE', 'IFRAME'
+            ];
             const allowedAttrs = {
-                'A': ['href', 'title', 'target'],
-                'IMG': ['src', 'style', 'alt', 'title', 'width', 'height'],
-                'IFRAME': ['src', 'width', 'height', 'style', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox'],
-                'VIDEO': ['src', 'controls', 'width', 'height', 'autoplay', 'muted', 'loop', 'poster', 'style'],
-                'SOURCE': ['src', 'type']
+                '*': ['style', 'class', 'title'],
+                'A': ['href', 'target'],
+                'IMG': ['src', 'alt', 'width', 'height'],
+                'VIDEO': ['src', 'controls', 'width', 'height', 'autoplay', 'muted', 'loop', 'poster'],
+                'SOURCE': ['src', 'type'],
+                'IFRAME': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox']
             };
 
             const cleanNode = (node) => {
-                if (node.nodeType === 3) return node.cloneNode(); // Text node
-                if (node.nodeType !== 1) return null; // Not an element node
+                if (node.nodeType === 3) return node.cloneNode();
+                if (node.nodeType !== 1) return null;
                 
                 const tagName = node.tagName.toUpperCase();
                 if (!allowedTags.includes(tagName)) return null;
 
                 const newNode = document.createElement(node.tagName);
-                const tagAllowedAttrs = allowedAttrs[tagName] || [];
+                const universalAttrs = allowedAttrs['*'] || [];
+                const tagSpecificAttrs = allowedAttrs[tagName] || [];
+                const allAllowedAttrs = [...new Set([...universalAttrs, ...tagSpecificAttrs])];
 
                 for (const attr of node.attributes) {
-                    if (tagAllowedAttrs.includes(attr.name.toLowerCase()) && !attr.name.startsWith('on')) {
+                    if (allAllowedAttrs.includes(attr.name.toLowerCase()) && !attr.name.startsWith('on')) {
                          if (attr.name === 'src' || attr.name === 'href') {
                              if (!attr.value.startsWith('http:') && !attr.value.startsWith('https:') && !attr.value.startsWith('data:')) {
                                 continue;
@@ -990,12 +997,11 @@
             await loadFromDB();
             
             const currentUrl = new URL(window.location.href);
-            const sessionPasswordFromUrl = currentUrl.searchParams.get('sesh-ID');
             const dataFromUrl = currentUrl.searchParams.get('data');
             const requiresSecret = currentUrl.searchParams.get('secret') === 'true';
 
             if (dataFromUrl) {
-                let password = sessionPasswordFromUrl;
+                let password = currentUrl.searchParams.get('sesh-ID');
                 if (requiresSecret) {
                      password = prompt("This note is protected. Please enter the password to view it:");
                 }
@@ -1070,6 +1076,7 @@
             DOMElements.closeQrCodeModalBtn.addEventListener('click', () => closeModal(DOMElements.qrCodeModal));
             DOMElements.shareNoteBtn.addEventListener('click', handleShareNote);
             DOMElements.secureSendToggle.addEventListener('change', generateShareLink);
+            DOMElements.exportNoteBtn.addEventListener('click', handleExportSingleNote);
 
             DOMElements.newNoteBtn.addEventListener('click', openNewNotePane);
             DOMElements.cancelNewNoteBtn.addEventListener('click', closeNewNotePane);
@@ -1110,7 +1117,6 @@
                  DOMElements.settingsModal.querySelector('#close-settings').addEventListener('click', () => closeModal(DOMElements.settingsModal));
                  DOMElements.settingsModal.querySelector('#import-btn').addEventListener('click', () => DOMElements.importFileInput.click());
                  DOMElements.settingsModal.querySelector('#export-btn').addEventListener('click', handleExport);
-                 DOMElements.copySessionBtn.addEventListener('click', handleCopySession);
                  DOMElements.clearStorageBtn.addEventListener('click', handleClearLocalStorage);
                  const settingsInputs = [
                     { el: DOMElements.settingsModal.querySelector('#user-name-setting'), key: 'userName' },
@@ -1242,6 +1248,7 @@
             }
             const settingsForExport = { ...state.settings };
             delete settingsForExport.sessionPassword;
+            delete settingsForExport.userName; // Don't export username
             const dataToEncrypt = JSON.stringify({ notes: state.notes, settings: settingsForExport, cannedResponses: state.cannedResponses });
             try {
                 const salt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -1302,7 +1309,8 @@
 
                     if (importedState.settings) {
                         const currentPassword = state.settings.sessionPassword;
-                        state.settings = { ...state.settings, ...importedState.settings, sessionPassword: currentPassword };
+                        const currentUserName = state.settings.userName;
+                        state.settings = { ...state.settings, ...importedState.settings, sessionPassword: currentPassword, userName: currentUserName };
                     }
                     
                     await saveData();
@@ -1367,10 +1375,6 @@
         function handleClearLocalStorage() {
             openModal(DOMElements.confirmClearModal);
         }
-        
-        async function handleCopySession() {
-            showNotification('This function is for full backups. Use the "Share" button on a note for single sharing.', 'info');
-        }
 
         async function handleShareNote() {
             await generateShareLink();
@@ -1389,9 +1393,11 @@
                 temporaryPassword = true;
             }
             
-            // Image resizing logic
-            const processedContent = await resizeImagesInContent(noteToShare.content);
-            noteToShare.content = processedContent;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = noteToShare.content;
+            const hasImages = tempDiv.querySelector('img');
+            noteToShare.content = tempDiv.innerHTML.replace(/<img[^>]*>/g, '');
+            DOMElements.shareInfo.textContent = hasImages ? 'Images removed for URL sharing. Use Export for full note.' : '';
 
             try {
                 const noteString = JSON.stringify(noteToShare);
@@ -1419,11 +1425,6 @@
                 } else {
                     sessionUrl += `&sesh-ID=${encodeURIComponent(password)}`;
                 }
-
-                if (sessionUrl.length > 2048) {
-                     showNotification('Note is too large to share via URL, even with compression.', 'error');
-                     return;
-                }
                 
                 const textArea = document.createElement("textarea");
                 textArea.value = sessionUrl;
@@ -1437,7 +1438,6 @@
                     showNotification('Failed to copy link.', 'error');
                 }
                 document.body.removeChild(textArea);
-
 
                 DOMElements.qrCodeContainer.innerHTML = '';
                 const qr = qrcode(0, 'M');
@@ -1457,55 +1457,44 @@
             }
         }
         
-        function resizeImage(src, maxWidth, maxHeight, quality = 0.7) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    let width = img.width;
-                    let height = img.height;
+        async function handleExportSingleNote() {
+            if (!state.currentNoteId) return;
+            const noteToExport = state.notes.find(n => n.id === state.currentNoteId);
+            if (!noteToExport) return;
+            
+            let password = state.settings.sessionPassword;
+            if (!password) {
+                 password = prompt("Please set a password for this export:");
+                 if (!password) {
+                     showNotification("Password is required for export.", "error");
+                     return;
+                 }
+            }
 
-                    if (width > height) {
-                        if (width > maxWidth) {
-                            height *= maxWidth / width;
-                            width = maxWidth;
-                        }
-                    } else {
-                        if (height > maxHeight) {
-                            width *= maxHeight / height;
-                            height = maxHeight;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                };
-                img.onerror = reject;
-                img.src = src;
-            });
-        }
-
-        async function resizeImagesInContent(content) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = content;
-            const images = tempDiv.querySelectorAll('img');
-            const imagePromises = [];
-
-            images.forEach(img => {
-                if (img.src.startsWith('data:image/') && img.src.length > 50 * 1024) { // only resize images > 50KB
-                    const promise = resizeImage(img.src, 800, 600)
-                        .then(resizedSrc => {
-                            img.src = resizedSrc;
-                        })
-                        .catch(err => console.error("Failed to resize image", err));
-                    imagePromises.push(promise);
-                }
-            });
-            await Promise.all(imagePromises);
-            return tempDiv.innerHTML;
+            const dataToEncrypt = JSON.stringify([noteToExport]);
+            try {
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encodedData = new TextEncoder().encode(dataToEncrypt);
+                const encryptedContent = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData);
+                const combinedData = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
+                combinedData.set(salt, 0);
+                combinedData.set(iv, salt.length);
+                combinedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
+                const blob = new Blob([combinedData], { type: 'application/octet-stream' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${noteToExport.title.replace(/\s/g, '-')}.mim`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showNotification('Note exported successfully!');
+            } catch (err) {
+                console.error("Single note export failed:", err);
+                showNotification('Export failed due to an encryption error.', 'error');
+            }
         }
 
         function insertImageFile(file, editor) {
