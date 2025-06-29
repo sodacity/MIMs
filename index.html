@@ -30,6 +30,7 @@
         }
         #notification {
             transition: opacity 0.5s, transform 0.5s;
+            z-index: 10000; /* Ensure it's on top of everything */
         }
         .editor-container {
             position: relative;
@@ -84,7 +85,7 @@
         .modal { transition: opacity 0.3s ease-out, transform 0.3s ease-out, background-color 0.3s; }
         #notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
         .note-card {
-            border: 1px solid #2d3748;
+            border: 2px solid transparent; /* Changed border to 2px for selection state */
             border-radius: 8px;
             padding: 1rem;
             cursor: pointer;
@@ -93,9 +94,16 @@
             flex-direction: column;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: background-color 0.3s, transform 0.2s;
+            transition: background-color 0.3s, transform 0.2s, border-color 0.2s;
         }
-        .note-card:hover { transform: translateY(-5px); }
+        .note-card.selected {
+            border-color: #4A90E2;
+            transform: scale(0.95);
+        }
+        .in-select-mode .note-card:hover {
+            transform: scale(1.02); /* Different hover effect in select mode */
+        }
+        .note-card:not(.in-select-mode):hover { transform: translateY(-5px); }
         .note-card-title {
             font-weight: bold;
             margin-bottom: 0.5rem;
@@ -190,6 +198,9 @@
         #secure-send-toggle:checked ~ .dot {
             transform: translateX(1.5rem);
         }
+        #batch-action-bar {
+            transition: transform 0.3s ease-in-out;
+        }
          @media (min-width: 768px) {
             #edit-note-pane {
                 width: 50%;
@@ -218,6 +229,9 @@
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
+    <!-- Notification Popup -->
+    <div id="notification" class="hidden fixed top-0 left-1/2 transform -translate-x-1/2 -translate-y-full text-white py-2 px-6 rounded-b-lg shadow-lg"></div>
+
     <!-- Global Drop Zone -->
     <div id="global-drop-zone" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4 pointer-events-none">
         <div class="text-center text-white border-4 border-dashed border-white rounded-lg p-12">
@@ -293,9 +307,30 @@
         </div>
         <!-- Notes Grid View -->
         <div id="notes-view" class="hidden">
+            <div class="flex justify-end mb-4">
+                <button id="select-mode-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Select</button>
+            </div>
             <div id="notes-grid"></div>
         </div>
     </main>
+
+    <!-- Batch Action Bar -->
+    <div id="batch-action-bar" class="fixed bottom-0 left-0 right-0 bg-gray-900 bg-opacity-90 p-4 transform translate-y-full z-40">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <span id="selection-count" class="font-bold"></span>
+            <div class="flex gap-2">
+                <button id="batch-export-btn" class="action-btn bg-green-500 hover:bg-green-600" title="Export Selected">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                </button>
+                <button id="batch-archive-btn" class="action-btn bg-yellow-500 hover:bg-yellow-600" title="Archive Selected">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"></path><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                </button>
+                <button id="batch-delete-btn" class="action-btn bg-red-500 hover:bg-red-600" title="Delete Selected">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Overlay -->
     <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-30 transition-opacity duration-300"></div>
@@ -314,8 +349,18 @@
         </div>
     </div>
 
-    <!-- Clear Storage Confirmation Modal -->
-    <div id="confirm-clear-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+    <!-- Confirmation Modals -->
+    <div id="batch-delete-confirm-modal" class="hidden modal fixed inset-0 z-[10001] flex items-center justify-center p-4">
+        <div class="bg-red-900 bg-opacity-90 rounded-lg shadow-xl w-full max-w-md p-6 text-center border border-red-500">
+            <h2 class="text-2xl font-bold mb-4 text-white">Confirm Deletion</h2>
+            <p id="batch-delete-message" class="text-white mb-6"></p>
+            <div class="flex justify-end gap-4">
+                <button id="cancel-batch-delete-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                <button id="confirm-batch-delete-action-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Delete Notes</button>
+            </div>
+        </div>
+    </div>
+    <div id="confirm-clear-modal" class="hidden modal fixed inset-0 z-[10001] flex items-center justify-center p-4">
         <div class="bg-red-900 bg-opacity-90 rounded-lg shadow-xl w-full max-w-md p-6 text-center border border-red-500">
             <h2 class="text-2xl font-bold mb-4 text-white">Are you sure?</h2>
             <p class="text-white mb-4">This action is irreversible and will delete all your notes, settings, and shortcuts.</p>
@@ -574,8 +619,6 @@
     </div>
 
 
-    <!-- Notification Popup -->
-    <div id="notification" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg hidden opacity-0 transform translate-y-2"></div>
     <datalist id="labels-datalist"></datalist>
     <input type="file" id="image-upload-input" class="hidden" accept="image/*">
     <input type="file" id="import-file-input" class="hidden" accept=".mim">
@@ -603,6 +646,10 @@
             deleteConfirmationInput: document.getElementById('delete-confirmation-input'),
             cancelClearBtn: document.getElementById('cancel-clear-btn'),
             confirmClearActionBtn: document.getElementById('confirm-clear-action-btn'),
+            batchDeleteConfirmModal: document.getElementById('batch-delete-confirm-modal'),
+            batchDeleteMessage: document.getElementById('batch-delete-message'),
+            cancelBatchDeleteBtn: document.getElementById('cancel-batch-delete-btn'),
+            confirmBatchDeleteActionBtn: document.getElementById('confirm-batch-delete-action-btn'),
             globalDropZone: document.getElementById('global-drop-zone'),
             // Edit Note Pane
             editNotePane: document.getElementById('edit-note-pane'),
@@ -661,7 +708,7 @@
             importFileInput: document.getElementById('import-file-input'),
             imageUploadInput: document.getElementById('image-upload-input'),
             clearStorageBtn: document.getElementById('clear-storage-btn'),
-            // Dashboard
+            // Dashboard & Notes View
             dashboardView: document.getElementById('dashboard-view'),
             notesView: document.getElementById('notes-view'),
             dashboardLink: document.getElementById('dashboard-link'),
@@ -671,6 +718,13 @@
             timeDisplay: document.getElementById('time-display'),
             recentNotesContainer: document.getElementById('recent-notes-container'),
             shortcutsGrid: document.getElementById('shortcuts-grid'),
+            // Batch Actions
+            selectModeBtn: document.getElementById('select-mode-btn'),
+            batchActionBar: document.getElementById('batch-action-bar'),
+            selectionCount: document.getElementById('selection-count'),
+            batchExportBtn: document.getElementById('batch-export-btn'),
+            batchArchiveBtn: document.getElementById('batch-archive-btn'),
+            batchDeleteBtn: document.getElementById('batch-delete-btn'),
             // QR Code Modal elements
             qrCodeModal: document.getElementById('qr-code-modal'),
             qrCodeContainer: document.getElementById('qr-code-container'),
@@ -682,7 +736,16 @@
         };
 
         // --- App State ---
-        let state = { notes: [], settings: {}, cannedResponses: [], currentNoteId: null, activeEditor: null, currentDate: new Date() };
+        let state = { 
+            notes: [], 
+            settings: {}, 
+            cannedResponses: [], 
+            currentNoteId: null, 
+            activeEditor: null, 
+            currentDate: new Date(),
+            selectModeActive: false,
+            selectedNoteIds: new Set()
+        };
         const defaultSettings = {
             title: 'Notes', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
             noteCardColor: '#000000', noteCardOpacity: 0.7, modalBgColor: '#000000',
@@ -855,10 +918,10 @@
             DOMElements.sidebarFooter.innerText = settings.footerText;
 
             const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
-            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal].forEach(el => {
+            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal, DOMElements.batchDeleteConfirmModal].forEach(el => {
                 if (el) {
                     const inner = el.firstElementChild;
-                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal' || el.id === 'qr-code-modal')) {
+                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal' || el.id === 'qr-code-modal' || el.id === 'batch-delete-confirm-modal')) {
                         inner.style.backgroundColor = rgbaModalBg;
                     } else {
                         el.style.backgroundColor = rgbaModalBg;
@@ -982,14 +1045,29 @@
                 const card = document.createElement('div');
                 card.className = 'note-card';
                 card.dataset.id = note.id;
+                
+                if (state.selectedNoteIds.has(note.id)) {
+                    card.classList.add('selected');
+                }
+
                 const baseColor = note.color || state.settings.noteCardColor;
                 const opacity = state.settings.noteCardOpacity || 1;
                 card.style.backgroundColor = hexToRgba(baseColor, opacity);
                 card.innerHTML = `<div class="note-card-title">${note.title}</div><div class="note-card-content">${note.content}</div>`;
-                card.addEventListener('click', () => openEditPane(note.id));
+                card.addEventListener('click', () => {
+                    if (state.selectModeActive) {
+                        toggleNoteSelection(note.id, card);
+                    } else {
+                        openEditPane(note.id);
+                    }
+                });
                 DOMElements.notesGrid.appendChild(card);
             });
-             new Sortable(DOMElements.notesGrid, { animation: 150, ghostClass: 'sortable-ghost' });
+             new Sortable(DOMElements.notesGrid, { 
+                animation: 150, 
+                ghostClass: 'sortable-ghost',
+                disabled: state.selectModeActive 
+            });
         }
         
         async function init() {
@@ -1088,13 +1166,20 @@
             DOMElements.shareNoteBtn.addEventListener('click', handleShareNote);
             DOMElements.secureSendToggle.addEventListener('change', generateShareLink);
             DOMElements.exportNoteBtn.addEventListener('click', handleExportSingleNote);
+            DOMElements.selectModeBtn.addEventListener('click', toggleSelectMode);
+            DOMElements.batchExportBtn.addEventListener('click', handleBatchExport);
+            DOMElements.batchArchiveBtn.addEventListener('click', handleBatchArchive);
+            DOMElements.batchDeleteBtn.addEventListener('click', handleBatchDelete);
+            DOMElements.cancelBatchDeleteBtn.addEventListener('click', () => closeModal(DOMElements.batchDeleteConfirmModal));
+            DOMElements.confirmBatchDeleteActionBtn.addEventListener('click', executeBatchDelete);
+
 
             DOMElements.newNoteBtn.addEventListener('click', openNewNotePane);
             DOMElements.cancelNewNoteBtn.addEventListener('click', closeNewNotePane);
             DOMElements.saveNewNoteBtn.addEventListener('click', handleSaveNewNote);
 
             DOMElements.cancelEditNoteBtn.addEventListener('click', closeEditPane);
-            DOMElements.saveEditNoteBtn.addEventListener('click', handleSaveEdit);
+            DOMElements.saveEditNoteBtn.addEventListener('click', () => handleSaveEdit());
             DOMElements.deleteNoteBtn.addEventListener('click', handleDeleteNote);
             DOMElements.archiveNoteBtn.addEventListener('click', handleArchiveNote);
 
@@ -1128,7 +1213,10 @@
             body.addEventListener('dragenter', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                DOMElements.globalDropZone.classList.remove('hidden');
+                const items = e.dataTransfer.items;
+                if (items && items.length > 0 && !items[0].type.startsWith('image/')) {
+                    DOMElements.globalDropZone.classList.remove('hidden');
+                }
             });
             body.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -1221,12 +1309,30 @@
             
             [DOMElements.editNoteEditor, DOMElements.newNoteEditor].forEach(editor => {
                  const container = editor.closest('.editor-container');
-                 container.addEventListener('dragenter', e => { e.stopPropagation(); e.preventDefault(); container.classList.add('drop-zone-active'); });
-                 container.addEventListener('dragover', e => { e.stopPropagation(); e.preventDefault(); });
-                 container.addEventListener('dragleave', e => { e.stopPropagation(); e.preventDefault(); if (e.relatedTarget === null || !container.contains(e.relatedTarget)) { container.classList.remove('drop-zone-active'); }});
+                 container.addEventListener('dragenter', e => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const items = e.dataTransfer.items;
+                    if (items && items.length > 0 && items[0].type.startsWith('image/')) {
+                         DOMElements.globalDropZone.classList.add('hidden');
+                         container.classList.add('drop-zone-active');
+                    }
+                 });
+                 container.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                 });
+                 container.addEventListener('dragleave', e => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (!container.contains(e.relatedTarget)) {
+                        container.classList.remove('drop-zone-active');
+                    }
+                 });
                  container.addEventListener('drop', e => {
                      e.stopPropagation();
                      e.preventDefault();
+                     DOMElements.globalDropZone.classList.add('hidden');
                      container.classList.remove('drop-zone-active');
                      handleImageDrop(e.dataTransfer.files, editor);
                  });
@@ -1246,7 +1352,7 @@
             showNotification('Note saved!');
         }
 
-        async function handleSaveEdit() {
+        async function handleSaveEdit(silent = false) {
             if (!state.currentNoteId) return;
             const note = state.notes.find(n => n.id === state.currentNoteId);
             if (!note) return;
@@ -1258,8 +1364,10 @@
             note.updatedAt = new Date().toISOString();
             
             await saveData();
-            closeEditPane();
-            showNotification('Note updated!');
+            if (!silent) {
+                closeEditPane();
+                showNotification('Note updated!');
+            }
         }
 
         async function handleDeleteNote() {
@@ -1431,6 +1539,7 @@
         }
         
         async function handleShareNote() {
+            await handleSaveEdit(true); // Silently save before sharing
             await generateShareLink();
             openModal(DOMElements.qrCodeModal);
         }
@@ -1449,9 +1558,9 @@
             
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = noteToShare.content;
-            const hasImages = tempDiv.querySelector('img');
-            noteToShare.content = tempDiv.innerHTML.replace(/<img[^>]*>/g, '');
-            DOMElements.shareInfo.textContent = hasImages ? 'Images removed for URL sharing. Use Export for full note.' : '';
+            const hasImages = tempDiv.querySelector('img, video, iframe');
+            noteToShare.content = tempDiv.innerHTML.replace(/<img[^>]*>|<video[^>]*>.*?<\/video>|<iframe[^>]*>.*?<\/iframe>/g, '');
+            DOMElements.shareInfo.textContent = hasImages ? 'Images or files removed for URL sharing. Use Export for full note.' : '';
 
             try {
                 const noteString = JSON.stringify(noteToShare);
@@ -1745,7 +1854,8 @@
                                  !DOMElements.iframeHelperModal.classList.contains('hidden') ||
                                  !DOMElements.welcomeModal.classList.contains('hidden') ||
                                  !DOMElements.qrCodeModal.classList.contains('hidden') ||
-                                 !DOMElements.confirmClearModal.classList.contains('hidden');
+                                 !DOMElements.confirmClearModal.classList.contains('hidden') ||
+                                 !DOMElements.batchDeleteConfirmModal.classList.contains('hidden');
             
             const isSidebarOpen = !DOMElements.sidebar.classList.contains('-translate-x-full');
 
@@ -1776,6 +1886,7 @@
             closeModal(DOMElements.welcomeModal);
             closeModal(DOMElements.confirmClearModal);
             closeModal(DOMElements.qrCodeModal);
+            closeModal(DOMElements.batchDeleteConfirmModal);
             closeSidebarMobile();
         }
 
@@ -1832,14 +1943,14 @@
         function showNotification(message, type = 'success') {
             const { notification } = DOMElements;
             notification.textContent = message;
-            notification.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform translate-y-2 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            notification.className = `fixed top-0 left-1/2 transform -translate-x-1/2 -translate-y-full text-white py-2 px-6 rounded-b-lg shadow-lg transition-transform duration-500 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
             notification.classList.remove('hidden');
             setTimeout(() => {
-                notification.classList.remove('opacity-0', 'translate-y-2');
+                notification.classList.remove('-translate-y-full');
             }, 10);
             setTimeout(() => {
-                notification.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => notification.classList.add('hidden'), 500);
+                notification.classList.add('-translate-y-full');
+                 setTimeout(() => notification.classList.add('hidden'), 500);
             }, 3000);
         }
 
@@ -1939,6 +2050,107 @@
                 manager.appendChild(div);
             });
         }
+        
+        function toggleSelectMode() {
+            state.selectModeActive = !state.selectModeActive;
+            state.selectedNoteIds.clear();
+            
+            if (state.selectModeActive) {
+                DOMElements.selectModeBtn.textContent = 'Done';
+                DOMElements.notesGrid.classList.add('in-select-mode');
+            } else {
+                DOMElements.selectModeBtn.textContent = 'Select';
+                DOMElements.notesGrid.classList.remove('in-select-mode');
+                DOMElements.batchActionBar.classList.add('translate-y-full');
+            }
+            renderNotesGrid(); // Rerender to apply/remove classes
+        }
+
+        function toggleNoteSelection(noteId, cardElement) {
+            if (state.selectedNoteIds.has(noteId)) {
+                state.selectedNoteIds.delete(noteId);
+                cardElement.classList.remove('selected');
+            } else {
+                state.selectedNoteIds.add(noteId);
+                cardElement.classList.add('selected');
+            }
+            
+            const count = state.selectedNoteIds.size;
+            if (count > 0) {
+                DOMElements.selectionCount.textContent = `${count} note${count > 1 ? 's' : ''} selected`;
+                DOMElements.batchActionBar.classList.remove('translate-y-full');
+            } else {
+                DOMElements.batchActionBar.classList.add('translate-y-full');
+            }
+        }
+        
+        function handleBatchDelete() {
+            if (state.selectedNoteIds.size === 0) return;
+            const count = state.selectedNoteIds.size;
+            DOMElements.batchDeleteMessage.textContent = `Are you sure you want to permanently delete these ${count} note${count > 1 ? 's' : ''}?`;
+            openModal(DOMElements.batchDeleteConfirmModal);
+        }
+        
+        async function executeBatchDelete() {
+            state.notes = state.notes.filter(note => !state.selectedNoteIds.has(note.id));
+            await saveData();
+            showNotification(`${state.selectedNoteIds.size} notes deleted.`, 'error');
+            closeModal(DOMElements.batchDeleteConfirmModal);
+            toggleSelectMode(); // Reset the selection UI
+        }
+        
+        async function handleBatchArchive() {
+             if (state.selectedNoteIds.size === 0) return;
+             state.notes.forEach(note => {
+                if (state.selectedNoteIds.has(note.id)) {
+                    note.archived = true;
+                }
+             });
+             await saveData();
+             showNotification(`${state.selectedNoteIds.size} notes archived.`);
+             toggleSelectMode();
+        }
+
+        async function handleBatchExport() {
+             if (state.selectedNoteIds.size === 0) return;
+             let password = state.settings.sessionPassword;
+             if (!password) {
+                 password = prompt("Please set a password for this export:");
+                 if (!password) {
+                     showNotification("Password is required for export.", "error");
+                     return;
+                 }
+            }
+
+            const notesToExport = state.notes.filter(note => state.selectedNoteIds.has(note.id));
+            const dataToEncrypt = JSON.stringify(notesToExport);
+
+             try {
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const keyMaterial = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                const key = await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encodedData = new TextEncoder().encode(dataToEncrypt);
+                const encryptedContent = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData);
+                const combinedData = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
+                combinedData.set(salt, 0);
+                combinedData.set(iv, salt.length);
+                combinedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
+                const blob = new Blob([combinedData], { type: 'application/octet-stream' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `MiMs-Batch-Export.mim`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showNotification(`${notesToExport.length} notes exported successfully!`);
+                toggleSelectMode();
+            } catch (err) {
+                console.error("Batch export failed:", err);
+                showNotification('Export failed due to an encryption error.', 'error');
+            }
+        }
+
 
         // --- Initial Load ---
         init();
