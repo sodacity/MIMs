@@ -15,7 +15,6 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.js"></script>
-    <!-- LZ-String Compression Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         body {
@@ -288,16 +287,13 @@
         <div class="flex justify-between items-center mb-4">
             <h1 id="app-title" class="text-2xl font-bold">Collections</h1>
             <div class="flex items-center">
-                 <button id="new-note-btn" class="sidebar-icon-btn" title="New Note">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </button>
-                <button id="calendar-btn" class="sidebar-icon-btn ml-2" title="Calendar">
+                 <button id="calendar-btn" class="sidebar-icon-btn" title="Calendar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                 </button>
                  <button id="settings-btn" class="sidebar-icon-btn ml-2" title="Settings">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </button>
-            </div>
+                </div>
         </div>
         <div class="flex flex-col flex-grow overflow-hidden">
              <div class="mb-4 search-container">
@@ -625,6 +621,9 @@
                     <div class="flex justify-between items-center"><label for="bg-color-setting" class="font-semibold">Background Color</label><input type="color" id="bg-color-setting"></div>
                     <div class="flex justify-between items-center"><label for="sidebar-color-setting" class="font-semibold">Sidebar Color</label><input type="color" id="sidebar-color-setting"></div>
                     <div class="flex justify-between items-center"><label for="font-color-setting" class="font-semibold">App Font Color</label><input type="color" id="font-color-setting"></div>
+                    <!-- --- MODIFICATION START: Rename label --- -->
+                    <div class="flex justify-between items-center"><label for="fab-color-setting" class="font-semibold">New Note Button Color</label><input type="color" id="fab-color-setting"></div>
+                    <!-- --- MODIFICATION END --- -->
                     <div class="flex justify-between items-center"><label for="note-card-color-setting" class="font-semibold">Default Note Card Color</label><input type="color" id="note-card-color-setting"></div>
                      <div class="flex justify-between items-center"><label for="note-card-opacity-setting" class="font-semibold">Note Card Transparency</label><input type="range" id="note-card-opacity-setting" min="0.1" max="1" step="0.05" class="w-1/2"></div>
                     <div class="flex justify-between items-center"><label for="modal-bg-color-setting" class="font-semibold">Pop Up Windows</label><input type="color" id="modal-bg-color-setting"></div>
@@ -703,6 +702,9 @@
     </div>
 
 
+    <button id="fab-add-note" title="New Note" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    </button>
     <datalist id="labels-datalist"></datalist>
     <input type="file" id="image-upload-input" class="hidden" accept="image/*">
     <input type="file" id="import-file-input" class="hidden" accept=".mim">
@@ -750,7 +752,7 @@
             archiveNoteBtn: document.getElementById('archive-note'),
             shareNoteBtn: document.getElementById('share-note-btn'),
             // New Note Pane
-            newNoteBtn: document.getElementById('new-note-btn'),
+            fabAddNoteBtn: document.getElementById('fab-add-note'),
             newNotePane: document.getElementById('new-note-pane'),
             newNoteTitleInput: document.getElementById('new-note-title'),
             newNoteEditor: document.getElementById('new-note-editor'),
@@ -842,6 +844,9 @@
         };
         const defaultSettings = {
             title: 'Collections', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
+            // --- MODIFICATION START: Update default FAB color ---
+            fabColor: '#000000',
+            // --- MODIFICATION END ---
             noteCardColor: '#000000', noteCardOpacity: 0.7, modalBgColor: '#000000',
             textInputBgColor: '#ffffff', textInputFontColor: '#000000',
             footerText: 'MiMs 1.0', modalOpacity: 0.95, userName: 'User', customLinks: [],
@@ -930,7 +935,6 @@
         function sanitizeHTML(dirtyHTML) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = dirtyHTML;
-            // --- MODIFICATION START: Add FONT tag and color attribute ---
             const allowedTags = [
                 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'P', 'A', 'UL', 'OL', 'LI', 'B', 'I', 'STRONG', 'EM', 'U', 'BR', 'DIV', 'SPAN', 
                 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'IMG', 'VIDEO', 'SOURCE', 'IFRAME', 'FONT'
@@ -944,7 +948,6 @@
                 'IFRAME': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox'],
                 'FONT': ['color']
             };
-            // --- MODIFICATION END ---
 
             const cleanNode = (node) => {
                 if (node.nodeType === 3) return node.cloneNode();
@@ -1013,6 +1016,8 @@
             DOMElements.sidebar.style.backgroundColor = settings.sidebarColor;
             DOMElements.body.style.color = settings.fontColor;
             DOMElements.sidebarFooter.innerText = settings.footerText;
+            
+            DOMElements.fabAddNoteBtn.style.backgroundColor = settings.fabColor;
 
             const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
             [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.videoHelperModal, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal, DOMElements.batchDeleteConfirmModal].forEach(el => {
@@ -1046,6 +1051,7 @@
                 settingsModal.querySelector('#bg-color-setting').value = settings.bgColor;
                 settingsModal.querySelector('#sidebar-color-setting').value = settings.sidebarColor;
                 settingsModal.querySelector('#font-color-setting').value = settings.fontColor;
+                settingsModal.querySelector('#fab-color-setting').value = settings.fabColor;
                 settingsModal.querySelector('#note-card-color-setting').value = settings.noteCardColor;
                 settingsModal.querySelector('#note-card-opacity-setting').value = settings.noteCardOpacity;
                 settingsModal.querySelector('#modal-bg-color-setting').value = settings.modalBgColor;
@@ -1329,7 +1335,7 @@
             DOMElements.confirmBatchDeleteActionBtn.addEventListener('click', executeBatchDelete);
 
 
-            DOMElements.newNoteBtn.addEventListener('click', openNewNotePane);
+            DOMElements.fabAddNoteBtn.addEventListener('click', openNewNotePane);
             DOMElements.cancelNewNoteBtn.addEventListener('click', closeNewNotePane);
             DOMElements.saveNewNoteBtn.addEventListener('click', handleSaveNewNote);
 
@@ -1439,6 +1445,7 @@
                     { el: DOMElements.settingsModal.querySelector('#bg-color-setting'), key: 'bgColor' },
                     { el: DOMElements.settingsModal.querySelector('#sidebar-color-setting'), key: 'sidebarColor' },
                     { el: DOMElements.settingsModal.querySelector('#font-color-setting'), key: 'fontColor' },
+                    { el: DOMElements.settingsModal.querySelector('#fab-color-setting'), key: 'fabColor' },
                     { el: DOMElements.settingsModal.querySelector('#note-card-color-setting'), key: 'noteCardColor' },
                     { el: DOMElements.settingsModal.querySelector('#note-card-opacity-setting'), key: 'noteCardOpacity' },
                     { el: DOMElements.settingsModal.querySelector('#modal-bg-color-setting'), key: 'modalBgColor' },
