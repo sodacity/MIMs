@@ -14,7 +14,6 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         body {
@@ -1536,9 +1535,7 @@
 
         async function handleSaveNewNote() {
             const title = DOMElements.newNoteTitleInput.value || 'Untitled Note';
-            // --- MODIFICATION START: Use .innerText for Markdown parsing ---
-            const content = marked.parse(DOMElements.newNoteEditor.innerText);
-            // --- MODIFICATION END ---
+            const content = sanitizeHTML(DOMElements.newNoteEditor.innerHTML);
             const label = DOMElements.newNoteLabelInput.value.trim();
             const color = DOMElements.newNoteCardColorInput.value;
             const now = new Date().toISOString();
@@ -1555,9 +1552,7 @@
             if (!note) return;
             
             note.title = DOMElements.editNoteTitleInput.value;
-            // --- MODIFICATION START: Use .innerText for Markdown parsing ---
-            note.content = marked.parse(DOMElements.editNoteEditor.innerText);
-            // --- MODIFICATION END ---
+            note.content = sanitizeHTML(DOMElements.editNoteEditor.innerHTML);
             note.label = DOMElements.editNoteLabelInput.value.trim();
             note.color = DOMElements.editNoteCardColorInput.value;
             note.updatedAt = new Date().toISOString();
@@ -1672,7 +1667,7 @@
             xmlDoc.querySelectorAll('resource').forEach(resourceNode => {
                 const mime = resourceNode.querySelector('mime')?.textContent;
                 const dataNode = resourceNode.querySelector('data');
-                if (dataNode) {
+                if (dataNode && dataNode.textContent) {
                     const hash = dataNode.getAttribute('hash');
                     const base64Data = dataNode.textContent.replace(/\s/g, '');
                     const dataUrl = `data:${mime};base64,${base64Data}`;
@@ -1690,16 +1685,25 @@
 
             for (const noteNode of noteNodes) {
                 const title = noteNode.querySelector('title')?.textContent || 'Untitled Note';
-                let content = noteNode.querySelector('content')?.textContent || '';
+                const contentNode = noteNode.querySelector('content');
+                let content = contentNode ? contentNode.textContent : '';
+
                 const created = formatDate(noteNode.querySelector('created')?.textContent);
                 const updated = formatDate(noteNode.querySelector('updated')?.textContent);
                 const tags = Array.from(noteNode.querySelectorAll('tag')).map(t => t.textContent);
 
-                content = content.replace(/<!\[CDATA\[|\]\]>/g, '');
+                // This regex is a simpler way to grab the content within the CDATA block
+                const cdataRegex = /<!\[CDATA\[(.*?)\]\]>/s;
+                const match = cdataRegex.exec(content);
+                if (match && match[1]) {
+                    content = match[1];
+                }
                 
+                // Use a temporary div to parse and manipulate the HTML-like content
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = content;
                 
+                // Now, query within this temporary structure
                 tempDiv.querySelectorAll('en-media').forEach(mediaNode => {
                     const hash = mediaNode.getAttribute('hash');
                     if (resourceMap.has(hash)) {
@@ -1717,13 +1721,13 @@
                     }
                     todoNode.replaceWith(li);
                 });
-
+                
                 let finalContent = tempDiv.innerHTML;
                 
                 importedNotes.push({
                     id: `enex-${Date.now()}-${Math.random()}`,
                     title: title,
-                    content: sanitizeHTML(marked.parse(finalContent)),
+                    content: sanitizeHTML(finalContent),
                     createdAt: created,
                     updatedAt: updated,
                     archived: false,
