@@ -1333,23 +1333,24 @@
             DOMElements.archiveNoteBtn.addEventListener('click', handleArchiveNote);
 
             // UPDATED SEARCH EVENT LISTENER
+            let searchDebounceTimeout;
             DOMElements.filterInput.addEventListener('input', () => {
-                const filterText = DOMElements.filterInput.value;
-                if (filterText.length > 0 && DOMElements.dashboardView.classList.contains('hidden')) {
-                    // If we're already on notes view, just filter
-                    renderNoteLists();
-                    renderNotesGrid();
-                } else if (filterText.length > 0) {
-                     // If we are on dashboard, switch to notes view and filter
-                    DOMElements.dashboardView.classList.add('hidden');
-                    DOMElements.notesView.classList.remove('hidden');
-                    renderNoteLists();
-                    renderNotesGrid();
-                } else {
-                    // If search is cleared, just re-render everything
-                    renderNoteLists();
-                    renderNotesGrid();
-                }
+                clearTimeout(searchDebounceTimeout);
+                searchDebounceTimeout = setTimeout(() => {
+                    const filterText = DOMElements.filterInput.value;
+                    if (filterText.length > 0 && DOMElements.dashboardView.classList.contains('hidden')) {
+                        renderNoteLists();
+                        renderNotesGrid();
+                    } else if (filterText.length > 0) {
+                        DOMElements.dashboardView.classList.add('hidden');
+                        DOMElements.notesView.classList.remove('hidden');
+                        renderNoteLists();
+                        renderNotesGrid();
+                    } else {
+                        renderNoteLists();
+                        renderNotesGrid();
+                    }
+                }, 400); // 400ms delay
             });
 
             DOMElements.modalOverlay.addEventListener('click', closeAllPopups);
