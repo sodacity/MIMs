@@ -1213,7 +1213,9 @@
              new Sortable(DOMElements.notesGrid, { 
                 animation: 150, 
                 ghostClass: 'sortable-ghost',
-                disabled: state.selectModeActive 
+                disabled: state.selectModeActive,
+                delay: 200, // Wait 200ms before starting a drag
+                delayOnTouchOnly: true // Only delay on touch devices
             });
         }
         
