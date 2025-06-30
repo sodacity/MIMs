@@ -94,7 +94,11 @@
             flex-direction: column;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: background-color 0.3s, transform 0.2s, border-color 0.2s;
+            transition: background-color 0.3s, transform 0.2s, border-color 0.2s, opacity 0.2s;
+        }
+        .note-card.is-archived {
+            opacity: 0.6;
+            border-style: dashed;
         }
         .note-card.selected {
             border-color: #4A90E2;
@@ -115,6 +119,36 @@
         }
         .note-card-content { flex-grow: 1; overflow: hidden; font-size: 0.9rem; }
         .note-card-content * { color: inherit !important; }
+        
+        /* --- Checklist Styles --- */
+        .editor ul li.task-item {
+            list-style-type: none; /* Hide the default bullet point */
+            position: relative;
+            padding-left: 28px; /* Make room for our custom checkbox */
+            margin-left: -28px; /* Pull it back in line with other text */
+        }
+
+        .editor ul li.task-item::before {
+            content: '☐'; /* The empty checkbox character */
+            position: absolute;
+            left: 0;
+            top: 2px;
+            font-size: 1.1rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #9ca3af; /* A nice gray color for the box */
+        }
+
+        .editor ul li.task-item.checked {
+            text-decoration: line-through;
+            color: #718096; /* Gray out the text when checked */
+        }
+
+        .editor ul li.task-item.checked::before {
+            content: '☑'; /* The checked checkbox character */
+            color: #4A90E2; /* A nice blue to show it's completed */
+        }
+
         .sidebar-icon-btn { color: #9ca3af; transition: color 0.2s; }
         .sidebar-icon-btn:hover { color: white; }
         #edit-note-pane, #new-note-pane {
@@ -192,11 +226,11 @@
             border-radius: 0.5rem;
         }
         /* Secure Send Toggle Style */
-        #secure-send-toggle:checked ~ .block {
-            background-color: #4A90E2;
-        }
-        #secure-send-toggle:checked ~ .dot {
+        .toggle-bg:checked ~ .dot {
             transform: translateX(1.5rem);
+        }
+         .toggle-bg:checked ~ .block {
+            background-color: #4A90E2;
         }
         #batch-action-bar {
             transition: transform 0.3s ease-in-out;
@@ -244,7 +278,7 @@
     <div id="sidebar" class="sidebar bg-gray-800 p-4 flex flex-col fixed h-full z-40 w-64 md:w-auto md:relative md:translate-x-0 transform -translate-x-full">
         <div id="sidebar-resize-handle" class="hidden md:block"></div>
         <div class="flex justify-between items-center mb-4">
-            <h1 id="app-title" class="text-2xl font-bold">Notes</h1>
+            <h1 id="app-title" class="text-2xl font-bold">Collections</h1>
             <div class="flex items-center">
                  <button id="new-note-btn" class="sidebar-icon-btn" title="New Note">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -269,7 +303,7 @@
                  </a>
                  <a href="#" id="all-notes-link" class="flex items-center p-2 rounded hover:bg-gray-700 font-semibold">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    Notes
+                    Collections
                  </a>
             </div>
             <div class="flex-grow overflow-y-auto">
@@ -307,7 +341,15 @@
         </div>
         <!-- Notes Grid View -->
         <div id="notes-view" class="hidden">
-            <div class="flex justify-end mb-4">
+            <div class="flex justify-end items-center mb-4 gap-4">
+                 <label class="flex items-center cursor-pointer">
+                    <span class="mr-3 font-semibold">Show Archived</span>
+                    <div class="relative">
+                        <input type="checkbox" id="archive-toggle" class="sr-only toggle-bg peer">
+                        <div class="w-14 h-8 bg-gray-600 rounded-full block peer-checked:bg-blue-500 transition-colors"></div>
+                        <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform transform peer-checked:translate-x-6"></div>
+                    </div>
+                </label>
                 <button id="select-mode-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Select</button>
             </div>
             <div id="notes-grid"></div>
@@ -386,6 +428,7 @@
                  <button class="toolbar-btn" data-command="insertImage" title="Insert Image"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
                 <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
+                <button class="toolbar-btn" data-command="insertChecklistItem" title="Checklist Item"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></button>
                 <button class="toolbar-btn" data-command="insertEmbed" title="Embed HTML"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
             </div>
@@ -441,6 +484,7 @@
                  <button class="toolbar-btn" data-command="insertImage" title="Insert Image"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
                  <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
+                <button class="toolbar-btn" data-command="insertChecklistItem" title="Checklist Item"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></button>
                  <button class="toolbar-btn" data-command="insertEmbed" title="Embed HTML"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></button>
                 <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
             </div>
@@ -605,9 +649,9 @@
                 <label class="flex items-center justify-center cursor-pointer">
                     <span class="mr-3 font-semibold">Require Password on Open</span>
                     <div class="relative">
-                        <input type="checkbox" id="secure-send-toggle" class="sr-only peer">
-                        <div class="w-14 h-8 bg-gray-600 rounded-full peer-checked:bg-blue-500 transition-colors"></div>
-                        <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform transform peer-checked:translate-x-6"></div>
+                        <input type="checkbox" id="secure-send-toggle" class="sr-only peer toggle-bg">
+                        <div class="w-14 h-8 bg-gray-600 rounded-full block"></div>
+                        <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform"></div>
                     </div>
                 </label>
             </div>
@@ -639,6 +683,7 @@
             notification: document.getElementById('notification'),
             body: document.querySelector('body'),
             archiveSection: document.getElementById('archive-section'),
+            archiveToggle: document.getElementById('archive-toggle'),
             modalOverlay: document.getElementById('modal-overlay'),
             welcomeModal: document.getElementById('welcome-modal'),
             closeWelcomeModalBtn: document.getElementById('close-welcome-modal'),
@@ -744,10 +789,11 @@
             activeEditor: null, 
             currentDate: new Date(),
             selectModeActive: false,
-            selectedNoteIds: new Set()
+            selectedNoteIds: new Set(),
+            showArchived: false,
         };
         const defaultSettings = {
-            title: 'Notes', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
+            title: 'Collections', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
             noteCardColor: '#000000', noteCardOpacity: 0.7, modalBgColor: '#000000',
             textInputBgColor: '#ffffff', textInputFontColor: '#000000',
             footerText: 'MiMs 1.0', modalOpacity: 0.95, userName: 'User', customLinks: [],
@@ -994,39 +1040,78 @@
         }
 
         function renderNoteLists() {
+            // Clear existing content
             DOMElements.labelsContainer.innerHTML = '';
             DOMElements.archiveList.innerHTML = '';
 
             const filteredNotes = getFilteredNotes();
-            const labels = [...new Set(filteredNotes.filter(n => n.label && !n.archived).map(n => n.label))];
+            
+            const activeNotes = filteredNotes.filter(n => !n.archived);
+            const archivedNotes = filteredNotes.filter(n => n.archived);
 
-            const notesByLabel = {};
-            labels.forEach(label => notesByLabel[label] = []);
-            const uncategorizedNotes = [];
+            // Helper function to create and append DOM nodes for a group of notes
+            const buildAndAppendLabelGroups = (container, notes, defaultTitle) => {
+                if (notes.length === 0) return;
+                
+                const notesByLabel = {};
+                const labels = [...new Set(notes.map(n => n.label).filter(Boolean))];
+                labels.forEach(label => notesByLabel[label] = []);
+                const uncategorized = [];
 
-            filteredNotes.forEach(note => {
-                if (note.archived) return;
-                if (note.label && notesByLabel[note.label]) {
-                    notesByLabel[note.label].push(note);
-                } else { uncategorizedNotes.push(note); }
-            });
+                notes.forEach(note => {
+                    if (note.label && notesByLabel[note.label]) {
+                        notesByLabel[note.label].push(note);
+                    } else {
+                        uncategorized.push(note);
+                    }
+                });
 
-            const createLabelGroup = (title, notes) => {
-                if (notes.length === 0) return '';
-                const notesHTML = notes.map(note => createNoteListItem(note).outerHTML).join('');
-                return `<details open class="mt-2">
-                            <summary class="cursor-pointer font-semibold p-1 rounded hover:bg-gray-700">${title}</summary>
-                            <div class="pl-2 border-l-2 border-gray-600">${notesHTML}</div>
-                        </details>`;
-            };
+                // Helper to create a single <details> block
+                const createLabelGroupElement = (title, notesInGroup) => {
+                    if (notesInGroup.length === 0) return null;
 
-            DOMElements.labelsContainer.innerHTML += createLabelGroup('Active Notes', uncategorizedNotes);
-            labels.sort().forEach(label => {
-                 DOMElements.labelsContainer.innerHTML += createLabelGroup(label, notesByLabel[label]);
-            });
+                    const details = document.createElement('details');
+                    details.open = true;
+                    details.className = 'mt-2';
 
-            filteredNotes.filter(n => n.archived).forEach(note => DOMElements.archiveList.appendChild(createNoteListItem(note)));
-            DOMElements.archiveSection.style.display = DOMElements.archiveList.children.length > 0 ? 'block' : 'none';
+                    const summary = document.createElement('summary');
+                    summary.className = 'cursor-pointer font-semibold p-1 rounded hover:bg-gray-700';
+                    summary.textContent = title;
+
+                    const listContainer = document.createElement('div');
+                    listContainer.className = 'pl-2 border-l-2 border-gray-600';
+
+                    notesInGroup.forEach(note => {
+                        // Here we append the actual element, not its HTML string
+                        listContainer.appendChild(createNoteListItem(note));
+                    });
+
+                    details.appendChild(summary);
+                    details.appendChild(listContainer);
+                    return details;
+                };
+                
+                // Create and append uncategorized notes first
+                const uncategorizedGroup = createLabelGroupElement(defaultTitle, uncategorized);
+                if (uncategorizedGroup) {
+                    container.appendChild(uncategorizedGroup);
+                }
+
+                // Then create and append labeled groups
+                labels.sort().forEach(label => {
+                    const labeledGroup = createLabelGroupElement(label, notesByLabel[label]);
+                    if (labeledGroup) {
+                        container.appendChild(labeledGroup);
+                    }
+                });
+            }
+
+            // Build the UI for active and archived notes
+            buildAndAppendLabelGroups(DOMElements.labelsContainer, activeNotes, 'Unsorted Notes');
+            buildAndAppendLabelGroups(DOMElements.archiveList, archivedNotes, 'Uncategorized');
+
+            // Show/hide the archive section based on content
+            DOMElements.archiveSection.style.display = archivedNotes.length > 0 ? 'block' : 'none';
         }
 
         function createNoteListItem(note) {
@@ -1034,18 +1119,33 @@
             noteEl.className = 'p-2 rounded cursor-pointer truncate hover:bg-gray-600';
             noteEl.dataset.id = note.id;
             noteEl.innerText = note.title || "Untitled Note";
-            noteEl.addEventListener('click', (e) => { e.stopPropagation(); openEditPane(note.id) });
+            noteEl.addEventListener('click', (e) => { e.stopPropagation(); openEditPane(note.id); });
             return noteEl;
         }
 
         function renderNotesGrid() {
             DOMElements.notesGrid.innerHTML = '';
-            const unarchivedNotes = state.notes.filter(n => !n.archived);
-            unarchivedNotes.forEach(note => {
+            const filteredNotes = getFilteredNotes();
+            const filterText = DOMElements.filterInput.value.toLowerCase();
+
+            let notesToShow;
+
+            if (filterText) {
+                // If searching, show all matching notes, active or archived
+                notesToShow = filteredNotes;
+            } else {
+                // If not searching, use the toggle state
+                notesToShow = filteredNotes.filter(n => n.archived === state.showArchived);
+            }
+
+            notesToShow.forEach(note => {
                 const card = document.createElement('div');
                 card.className = 'note-card';
                 card.dataset.id = note.id;
                 
+                if (note.archived) {
+                    card.classList.add('is-archived');
+                }
                 if (state.selectedNoteIds.has(note.id)) {
                     card.classList.add('selected');
                 }
@@ -1183,7 +1283,26 @@
             DOMElements.deleteNoteBtn.addEventListener('click', handleDeleteNote);
             DOMElements.archiveNoteBtn.addEventListener('click', handleArchiveNote);
 
-            DOMElements.filterInput.addEventListener('input', renderNoteLists);
+            // UPDATED SEARCH EVENT LISTENER
+            DOMElements.filterInput.addEventListener('input', () => {
+                const filterText = DOMElements.filterInput.value;
+                if (filterText.length > 0 && DOMElements.dashboardView.classList.contains('hidden')) {
+                    // If we're already on notes view, just filter
+                    renderNoteLists();
+                    renderNotesGrid();
+                } else if (filterText.length > 0) {
+                     // If we are on dashboard, switch to notes view and filter
+                    DOMElements.dashboardView.classList.add('hidden');
+                    DOMElements.notesView.classList.remove('hidden');
+                    renderNoteLists();
+                    renderNotesGrid();
+                } else {
+                    // If search is cleared, just re-render everything
+                    renderNoteLists();
+                    renderNotesGrid();
+                }
+            });
+
             DOMElements.modalOverlay.addEventListener('click', closeAllPopups);
 
             DOMElements.dashboardLink.addEventListener('click', (e) => {
@@ -1194,9 +1313,17 @@
             });
              DOMElements.allNotesLink.addEventListener('click', (e) => {
                 e.preventDefault();
+                state.showArchived = false;
+                DOMElements.archiveToggle.checked = false;
                 DOMElements.dashboardView.classList.add('hidden');
                 DOMElements.notesView.classList.remove('hidden');
-                 closeSidebarMobile();
+                renderNotesGrid();
+                closeSidebarMobile();
+            });
+
+            DOMElements.archiveToggle.addEventListener('change', e => {
+                state.showArchived = e.target.checked;
+                renderNotesGrid();
             });
 
             DOMElements.calendarBtn.addEventListener('click', () => { renderCalendar(); openModal(DOMElements.calendarModal); });
@@ -1336,6 +1463,20 @@
                      container.classList.remove('drop-zone-active');
                      handleImageDrop(e.dataTransfer.files, editor);
                  });
+            });
+
+            // ++ ADD THIS BLOCK FOR CHECKLISTS ++
+            [DOMElements.editNoteEditor, DOMElements.newNoteEditor].forEach(editor => {
+                editor.addEventListener('click', e => {
+                    const listItem = e.target.closest('li.task-item');
+                    if (listItem) {
+                        e.preventDefault();
+                        listItem.classList.toggle('checked');
+                        if(editor.id === 'edit-note-editor') {
+                            handleSaveEdit(true); // silent save
+                        }
+                    }
+                });
             });
         }
 
@@ -1905,6 +2046,19 @@
                     DOMElements.imageUploadInput.click();
                 } else if (command === 'insertEmbed') {
                     openModal(DOMElements.embedModal);
+                } else if (command === 'insertChecklistItem') {
+                    // This is the FIXED logic for the checklist item
+                    document.execCommand('insertUnorderedList', false, null);
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        let parent = selection.getRangeAt(0).startContainer;
+                        while(parent && parent.tagName !== 'LI') {
+                            parent = parent.parentElement;
+                        }
+                        if (parent && parent.tagName === 'LI') {
+                            parent.classList.toggle('task-item');
+                        }
+                    }
                 } else if (command) {
                     document.execCommand(command, false, target.value || null);
                 }
