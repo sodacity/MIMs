@@ -52,8 +52,10 @@
             transition: background-color 0.3s;
             padding: 1rem;
             border-radius: 0 0 0.5rem 0.5rem;
+            color: inherit;
         }
-        .editor img, .editor iframe, .editor video { max-width: 100%; height: auto; border-radius: 8px; }
+        .editor img, .editor video { max-width: 100%; height: auto; border-radius: 8px; }
+        .editor iframe { max-width: 100%; border-radius: 8px; }
         .editor ul, .editor ol { padding-left: 2rem; }
         .editor ul { list-style: disc; }
         .editor ol { list-style: decimal; }
@@ -124,7 +126,7 @@
             flex-shrink: 0;
         }
         .note-card-content { flex-grow: 1; overflow: hidden; font-size: 0.9rem; }
-        .note-card-content * { color: inherit !important; }
+        .note-card-content * { color: inherit; }
         
         /* --- Checklist Styles --- */
         .editor ul li.task-item {
@@ -439,7 +441,7 @@
                 <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
             </div>
             <div class="editor-container">
-                <div id="edit-note-editor" contenteditable="true" class="editor w-full text-white"></div>
+                <div id="edit-note-editor" contenteditable="true" class="editor w-full"></div>
                 <div class="drop-zone-overlay">
                     <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     <p class="text-2xl font-bold text-white mt-2">DROP IMAGE HERE</p>
@@ -477,7 +479,6 @@
         </div>
     </div>
 
-    <!-- New Note Bottom Pane -->
     <div id="new-note-pane" class="bg-gray-800 shadow-2xl flex flex-col relative">
         <div id="bottom-resize-handle" class="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-2 bg-gray-600 rounded-full cursor-ns-resize hidden md:block"></div>
         <div class="p-4 md:p-6 pt-8 flex flex-col h-full w-full overflow-hidden">
@@ -495,7 +496,7 @@
                 <button class="toolbar-btn" data-command="email" title="Email Note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></button>
             </div>
             <div class="editor-container">
-                <div id="new-note-editor" contenteditable="true" class="editor w-full text-white"></div>
+                <div id="new-note-editor" contenteditable="true" class="editor w-full"></div>
                 <div class="drop-zone-overlay">
                     <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     <p class="text-2xl font-bold text-white mt-2">DROP IMAGE HERE</p>
@@ -532,9 +533,14 @@
         <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Embed Content</h2>
-                <button id="iframe-helper-btn" class="p-2 rounded-full hover:bg-gray-700" title="iFrame Builder">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                </button>
+                <div class="flex gap-2">
+                    <button id="video-helper-btn" class="p-2 rounded-full hover:bg-gray-700" title="Video Builder">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"></path><rect x="2" y="6" width="14" height="12" rx="2" ry="2"></rect></svg>
+                    </button>
+                    <button id="iframe-helper-btn" class="p-2 rounded-full hover:bg-gray-700" title="iFrame Builder">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </button>
+                </div>
             </div>
             <p class="text-gray-400 mb-4">Paste your HTML embed code below, or use the iFrame builder.</p>
             <textarea id="embed-code-input" class="text-input-field w-full p-2 rounded h-32" placeholder="<iframe ...></iframe> or <video ...>...</video>"></textarea>
@@ -565,6 +571,34 @@
             <div class="flex justify-end gap-4 mt-6">
                 <button id="cancel-iframe-helper-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
                 <button id="add-iframe-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="video-helper-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Video Builder</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="video-url" class="block mb-2 font-semibold">Video URL (.mp4)</label>
+                    <input type="url" id="video-url" class="text-input-field w-full p-2 rounded" placeholder="https://example.com/video.mp4">
+                </div>
+                 <div>
+                    <label for="video-width" class="block mb-2 font-semibold">Width</label>
+                    <input type="number" id="video-width" class="text-input-field w-full p-2 rounded" value="500">
+                </div>
+                 <div>
+                    <label for="video-height" class="block mb-2 font-semibold">Height</label>
+                    <input type="number" id="video-height" class="text-input-field w-full p-2 rounded" value="300">
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="video-controls" class="mr-2" checked>
+                    <label for="video-controls" class="font-semibold">Show Controls</label>
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button id="cancel-video-helper-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                <button id="add-video-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Add</button>
             </div>
         </div>
     </div>
@@ -755,6 +789,14 @@
             iframeHeightInput: document.getElementById('iframe-height'),
             addIframeBtn: document.getElementById('add-iframe-btn'),
             cancelIframeHelperBtn: document.getElementById('cancel-iframe-helper-btn'),
+            videoHelperBtn: document.getElementById('video-helper-btn'),
+            videoHelperModal: document.getElementById('video-helper-modal'),
+            videoUrlInput: document.getElementById('video-url'),
+            videoWidthInput: document.getElementById('video-width'),
+            videoHeightInput: document.getElementById('video-height'),
+            videoControlsCheckbox: document.getElementById('video-controls'),
+            addVideoBtn: document.getElementById('add-video-btn'),
+            cancelVideoHelperBtn: document.getElementById('cancel-video-helper-btn'),
             // Import/Export & Image
             importFileInput: document.getElementById('import-file-input'),
             imageUploadInput: document.getElementById('image-upload-input'),
@@ -888,9 +930,10 @@
         function sanitizeHTML(dirtyHTML) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = dirtyHTML;
+            // --- MODIFICATION START: Add FONT tag and color attribute ---
             const allowedTags = [
                 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'P', 'A', 'UL', 'OL', 'LI', 'B', 'I', 'STRONG', 'EM', 'U', 'BR', 'DIV', 'SPAN', 
-                'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'IMG', 'VIDEO', 'SOURCE', 'IFRAME'
+                'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'IMG', 'VIDEO', 'SOURCE', 'IFRAME', 'FONT'
             ];
             const allowedAttrs = {
                 '*': ['style', 'class', 'title'],
@@ -898,8 +941,10 @@
                 'IMG': ['src', 'alt', 'width', 'height'],
                 'VIDEO': ['src', 'controls', 'width', 'height', 'autoplay', 'muted', 'loop', 'poster'],
                 'SOURCE': ['src', 'type'],
-                'IFRAME': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox']
+                'IFRAME': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'sandbox'],
+                'FONT': ['color']
             };
+            // --- MODIFICATION END ---
 
             const cleanNode = (node) => {
                 if (node.nodeType === 3) return node.cloneNode();
@@ -970,16 +1015,20 @@
             DOMElements.sidebarFooter.innerText = settings.footerText;
 
             const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
-            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.greetingBanner, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal, DOMElements.batchDeleteConfirmModal].forEach(el => {
+            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.videoHelperModal, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal, DOMElements.batchDeleteConfirmModal].forEach(el => {
                 if (el) {
                     const inner = el.firstElementChild;
-                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal' || el.id === 'qr-code-modal' || el.id === 'batch-delete-confirm-modal')) {
+                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'video-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal' || el.id === 'qr-code-modal' || el.id === 'batch-delete-confirm-modal')) {
                         inner.style.backgroundColor = rgbaModalBg;
                     } else {
                         el.style.backgroundColor = rgbaModalBg;
                     }
                 }
             });
+
+            const rgbaBannerBg = hexToRgba(settings.noteCardColor, settings.noteCardOpacity);
+            DOMElements.greetingBanner.style.backgroundColor = rgbaBannerBg;
+
 
             document.querySelectorAll('.text-input-field').forEach(el => {
                 el.style.backgroundColor = settings.textInputBgColor;
@@ -1340,6 +1389,9 @@
             DOMElements.iframeHelperBtn.addEventListener('click', () => openModal(DOMElements.iframeHelperModal));
             DOMElements.addIframeBtn.addEventListener('click', handleAddIframe);
             DOMElements.cancelIframeHelperBtn.addEventListener('click', () => closeModal(DOMElements.iframeHelperModal));
+            DOMElements.videoHelperBtn.addEventListener('click', () => openModal(DOMElements.videoHelperModal));
+            DOMElements.addVideoBtn.addEventListener('click', handleAddVideo);
+            DOMElements.cancelVideoHelperBtn.addEventListener('click', () => closeModal(DOMElements.videoHelperModal));
 
             // Drag and Drop for .mim files
             const body = DOMElements.body;
@@ -1857,6 +1909,26 @@
                 showNotification('URL is required to build an iFrame.', 'error');
             }
         }
+
+        function handleAddVideo() {
+            const url = DOMElements.videoUrlInput.value;
+            const width = DOMElements.videoWidthInput.value;
+            const height = DOMElements.videoHeightInput.value;
+            const controls = DOMElements.videoControlsCheckbox.checked;
+
+            if (url) {
+                if (!url.toLowerCase().endsWith('.mp4')) {
+                    showNotification('Please provide a URL ending in .mp4', 'error');
+                    return;
+                }
+                const controlsAttr = controls ? 'controls' : '';
+                const videoHTML = `<video width="${width}" height="${height}" ${controlsAttr}><source src="${url}" type="video/mp4"></video>`;
+                DOMElements.embedCodeInput.value = videoHTML;
+                closeModal(DOMElements.videoHelperModal);
+            } else {
+                showNotification('Video URL is required.', 'error');
+            }
+        }
         
         async function handleAddCannedResponse() {
             const name = DOMElements.newCannedResponseNameInput.value.trim();
@@ -1917,7 +1989,7 @@
             state.settings[key] = value;
             await saveData();
             applySettings();
-            if (key === 'noteCardColor' || key === 'noteCardOpacity') {
+            if (key === 'noteCardColor' || key === 'noteCardOpacity' || key === 'fontColor') {
                  renderNotesGrid();
                  renderDashboard();
             }
@@ -1999,6 +2071,7 @@
                                  !DOMElements.emailModal.classList.contains('hidden') ||
                                  !DOMElements.embedModal.classList.contains('hidden') ||
                                  !DOMElements.iframeHelperModal.classList.contains('hidden') ||
+                                 !DOMElements.videoHelperModal.classList.contains('hidden') ||
                                  !DOMElements.welcomeModal.classList.contains('hidden') ||
                                  !DOMElements.qrCodeModal.classList.contains('hidden') ||
                                  !DOMElements.confirmClearModal.classList.contains('hidden') ||
@@ -2030,6 +2103,7 @@
             closeModal(DOMElements.emailModal);
             closeModal(DOMElements.embedModal);
             closeModal(DOMElements.iframeHelperModal);
+            closeModal(DOMElements.videoHelperModal);
             closeModal(DOMElements.welcomeModal);
             closeModal(DOMElements.confirmClearModal);
             closeModal(DOMElements.qrCodeModal);
