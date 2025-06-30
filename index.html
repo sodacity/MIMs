@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MiMs</title>
 
-    <!-- PWA-Specific Meta Tags & Manifest -->
     <meta name="theme-color" content="#3c6d5e">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 50 50'%3e%3crect width='50' height='50' rx='10' fill='%233c6d5e'/%3e%3ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='28' font-weight='bold' fill='white'%3eM%3c/text%3e%3c/svg%3e">
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk1pTXMgLSBNeSBJbnRlcnByZXRlciIsCiAgInNob3J0X25hbWUiOiAiTWlNcyIsCiAgImRlc2NyaXB0aW9uIjogIllvdXIgc2ltcGxlLCBzZWN1cmUgbm90ZS10YWtpbmcgYXBwbGljYXRpb24uIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxZjI5MzciLAogICJ0aGVtZV9jb2xvciI6ICIjM2M2ZDVlIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sLCUzY3N2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxOTInIGhlaWdodD0nMTkyJyB2aWV3Qm94PScwIDAgNTAgNTAnJTNFJTNDcmVjdCB3aWR0aD0nNTAnIGhlaWdodD0nNTAnIHJ4PScxMCcgZmlsbD0nJTIzM2M2ZDVlJy8lM0UlNUN0ZXh0IHg9JzUwJSUyNScgeT0nNTIlMjUnIGRvbWluYW50LWJhc2VsaW5lPSdtaWRkbGUnIHRleHQtYW5jaG9yPSdtaWRkbGUnIGZvbnQtZmFtaWx5PSdzYW5zLXNlcmlmJyBmb250LXNpemU9JzI4JyBmb250LXdlaWdodD0nYm9sZCcgZmlsbD0nd2hpdGUnJTNFTTklM0MvdGV4dCUzRSUzQy9zdmclM0UiLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiLAogICAgICAicHVycG9zZSI6ICJhbnkgbWFza2FibGUiCiAgICB9LAogICAgewogICAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbCUzY3N2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1MTInIGhlaWdodD0nNTEyJyB2aWV3Qm94PScwIDAgNTAgNTAnJTNFJTNDcmVjdCB3aWR0aD0nNTAnIGhlaWdodD0nNTAnIHJ4PScxMCcgZmlsbD0nJTIzM2M2ZDVlJy8lM0UlNUN0ZXh0IHg9JzUwJSUyNScgeT0nNTIlMjUnIGRvbWluYW50LWJhc2VsaW5lPSdtaWRkbGUnIHRleHQtYW5jaG9yPSdtaWRkbGUnIGZvbnQtZmFtaWx5PSdzYW5zLXNlcmlmJyBmb250LXNpemU9JzI4JyBmb250LXdlaWdodD0nYm9sZCcgZmlsbD0nd2hpdGUnJTNFTTklM0MvdGV4dCUzRSUzQy9zdmclM0UiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiLAogICAgICAicHVycG9zZSI6ICJhbnkgbWFza2FibGUiCiAgICB9CiAgXQp9Cg==">
@@ -15,6 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         body {
@@ -232,7 +232,6 @@
             padding: 1rem;
             border-radius: 0.5rem;
         }
-        /* Secure Send Toggle Style */
         .toggle-bg:checked ~ .dot {
             transform: translateX(1.5rem);
         }
@@ -251,7 +250,6 @@
                  height: 60vh;
             }
         }
-        /* Custom scrollbar for a modern look */
         .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
         }
@@ -270,10 +268,8 @@
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
-    <!-- Notification Popup -->
     <div id="notification" class="hidden fixed top-0 left-1/2 transform -translate-x-1/2 -translate-y-full text-white py-2 px-6 rounded-b-lg shadow-lg"></div>
 
-    <!-- Global Drop Zone -->
     <div id="global-drop-zone" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4 pointer-events-none">
         <div class="text-center text-white border-4 border-dashed border-white rounded-lg p-12">
             <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -281,7 +277,6 @@
         </div>
     </div>
     
-    <!-- Sidebar -->
     <div id="sidebar" class="sidebar bg-gray-800 p-4 flex flex-col fixed h-full z-40 w-64 md:w-auto md:relative md:translate-x-0 transform -translate-x-full">
         <div id="sidebar-resize-handle" class="hidden md:block"></div>
         <div class="flex justify-between items-center mb-4">
@@ -293,7 +288,7 @@
                  <button id="settings-btn" class="sidebar-icon-btn ml-2" title="Settings">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </button>
-                </div>
+            </div>
         </div>
         <div class="flex flex-col flex-grow overflow-hidden">
              <div class="mb-4 search-container">
@@ -321,13 +316,11 @@
         </div>
     </div>
 
-    <!-- Main Content Area -->
     <main id="main-content" class="flex-grow p-6 overflow-y-auto relative">
          <button id="mobile-menu-btn" class="md:hidden fixed top-4 left-4 z-50 p-2 bg-gray-900 bg-opacity-50 rounded-full text-white">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
 
-        <!-- Dashboard View -->
         <div id="dashboard-view">
             <div id="greeting-banner" class="p-6 rounded-lg mb-6 text-center">
                 <h1 id="greeting-text" class="text-3xl md:text-4xl font-bold"></h1>
@@ -343,7 +336,6 @@
                  <div id="shortcuts-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
              </div>
         </div>
-        <!-- Notes Grid View -->
         <div id="notes-view" class="hidden">
             <div class="flex justify-end items-center mb-4 gap-4">
                  <label class="flex items-center cursor-pointer">
@@ -360,7 +352,6 @@
         </div>
     </main>
 
-    <!-- Batch Action Bar -->
     <div id="batch-action-bar" class="fixed bottom-0 left-0 right-0 bg-gray-900 bg-opacity-90 p-4 transform translate-y-full z-40">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <span id="selection-count" class="font-bold"></span>
@@ -378,10 +369,8 @@
         </div>
     </div>
 
-    <!-- Modal Overlay -->
     <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-30 transition-opacity duration-300"></div>
 
-    <!-- Welcome Modal -->
     <div id="welcome-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6 text-center">
             <img src="https://www.makeitmakesense.lol/logo.png" alt="Make It Make Sense Logo" class="mx-auto mb-6" style="max-width: 300px;">
@@ -395,7 +384,6 @@
         </div>
     </div>
 
-    <!-- Confirmation Modals -->
     <div id="batch-delete-confirm-modal" class="hidden modal fixed inset-0 z-[10001] flex items-center justify-center p-4">
         <div class="bg-red-900 bg-opacity-90 rounded-lg shadow-xl w-full max-w-md p-6 text-center border border-red-500">
             <h2 class="text-2xl font-bold mb-4 text-white">Confirm Deletion</h2>
@@ -419,7 +407,6 @@
         </div>
     </div>
 
-    <!-- Edit Note Side Pane -->
     <div id="edit-note-pane" class="bg-gray-800 shadow-2xl flex flex-col relative">
         <div id="side-pane-resize-handle" class="hidden md:block"></div>
          <div class="p-4 md:p-6 flex flex-col h-full w-full overflow-hidden">
@@ -603,12 +590,13 @@
     <div id="settings-modal" class="hidden modal fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-xl z-50 w-11/12 max-w-md opacity-0 scale-95">
         <div class="p-6 flex flex-col max-h-[85vh]">
             <div class="flex-shrink-0 mb-6">
-                <div class="flex justify-between items-center">
-                     <h2 class="text-2xl font-bold">Settings</h2>
-                     <div class="flex gap-2">
-                         <button id="import-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Import</button>
-                         <button id="export-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Export</button>
-                     </div>
+                <h2 class="text-2xl font-bold text-center mb-4">Settings</h2>
+                <div class="flex justify-center gap-2 items-start">
+                    <div class="flex flex-col gap-1">
+                        <button id="import-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Import .mim</button>
+                        <button id="import-enex-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-1 px-4 rounded text-sm">Import .enex</button>
+                    </div>
+                    <button id="export-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Export .mim</button>
                 </div>
             </div>
             <div class="flex-grow overflow-y-auto custom-scrollbar pr-4">
@@ -621,9 +609,7 @@
                     <div class="flex justify-between items-center"><label for="bg-color-setting" class="font-semibold">Background Color</label><input type="color" id="bg-color-setting"></div>
                     <div class="flex justify-between items-center"><label for="sidebar-color-setting" class="font-semibold">Sidebar Color</label><input type="color" id="sidebar-color-setting"></div>
                     <div class="flex justify-between items-center"><label for="font-color-setting" class="font-semibold">App Font Color</label><input type="color" id="font-color-setting"></div>
-                    <!-- --- MODIFICATION START: Rename label --- -->
                     <div class="flex justify-between items-center"><label for="fab-color-setting" class="font-semibold">New Note Button Color</label><input type="color" id="fab-color-setting"></div>
-                    <!-- --- MODIFICATION END --- -->
                     <div class="flex justify-between items-center"><label for="note-card-color-setting" class="font-semibold">Default Note Card Color</label><input type="color" id="note-card-color-setting"></div>
                      <div class="flex justify-between items-center"><label for="note-card-opacity-setting" class="font-semibold">Note Card Transparency</label><input type="range" id="note-card-opacity-setting" min="0.1" max="1" step="0.05" class="w-1/2"></div>
                     <div class="flex justify-between items-center"><label for="modal-bg-color-setting" class="font-semibold">Pop Up Windows</label><input type="color" id="modal-bg-color-setting"></div>
@@ -708,6 +694,7 @@
     <datalist id="labels-datalist"></datalist>
     <input type="file" id="image-upload-input" class="hidden" accept="image/*">
     <input type="file" id="import-file-input" class="hidden" accept=".mim">
+    <input type="file" id="import-enex-input" class="hidden" accept=".enex">
 
     <script>
         // --- DOM Elements ---
@@ -801,6 +788,8 @@
             cancelVideoHelperBtn: document.getElementById('cancel-video-helper-btn'),
             // Import/Export & Image
             importFileInput: document.getElementById('import-file-input'),
+            importEnexBtn: document.getElementById('import-enex-btn'),
+            importEnexInput: document.getElementById('import-enex-input'),
             imageUploadInput: document.getElementById('image-upload-input'),
             clearStorageBtn: document.getElementById('clear-storage-btn'),
             // Dashboard & Notes View
@@ -844,9 +833,7 @@
         };
         const defaultSettings = {
             title: 'Collections', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
-            // --- MODIFICATION START: Update default FAB color ---
             fabColor: '#000000',
-            // --- MODIFICATION END ---
             noteCardColor: '#000000', noteCardOpacity: 0.7, modalBgColor: '#000000',
             textInputBgColor: '#ffffff', textInputFontColor: '#000000',
             footerText: 'MiMs 1.0', modalOpacity: 0.95, userName: 'User', customLinks: [],
@@ -1435,6 +1422,8 @@
             if (DOMElements.settingsModal) {
                  DOMElements.settingsModal.querySelector('#close-settings').addEventListener('click', () => closeModal(DOMElements.settingsModal));
                  DOMElements.settingsModal.querySelector('#import-btn').addEventListener('click', () => DOMElements.importFileInput.click());
+                 DOMElements.importEnexBtn.addEventListener('click', () => DOMElements.importEnexInput.click());
+                 DOMElements.importEnexInput.addEventListener('change', handleEnexImport);
                  DOMElements.settingsModal.querySelector('#export-btn').addEventListener('click', handleExport);
                  DOMElements.clearStorageBtn.addEventListener('click', handleClearLocalStorage);
                  const settingsInputs = [
@@ -1547,7 +1536,9 @@
 
         async function handleSaveNewNote() {
             const title = DOMElements.newNoteTitleInput.value || 'Untitled Note';
-            const content = sanitizeHTML(DOMElements.newNoteEditor.innerHTML);
+            // --- MODIFICATION START: Use .innerText for Markdown parsing ---
+            const content = marked.parse(DOMElements.newNoteEditor.innerText);
+            // --- MODIFICATION END ---
             const label = DOMElements.newNoteLabelInput.value.trim();
             const color = DOMElements.newNoteCardColorInput.value;
             const now = new Date().toISOString();
@@ -1564,7 +1555,9 @@
             if (!note) return;
             
             note.title = DOMElements.editNoteTitleInput.value;
-            note.content = sanitizeHTML(DOMElements.editNoteEditor.innerHTML);
+            // --- MODIFICATION START: Use .innerText for Markdown parsing ---
+            note.content = marked.parse(DOMElements.editNoteEditor.innerText);
+            // --- MODIFICATION END ---
             note.label = DOMElements.editNoteLabelInput.value.trim();
             note.color = DOMElements.editNoteCardColorInput.value;
             note.updatedAt = new Date().toISOString();
@@ -1643,6 +1636,102 @@
             if (!file) return;
             processMimFile(file);
             DOMElements.importFileInput.value = '';
+        }
+        
+        function handleEnexImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    showNotification('Importing Evernote file...', 'success');
+                    const xmlText = event.target.result;
+                    const newNotes = parseEnexFile(xmlText);
+                    
+                    const existingNoteTitles = new Set(state.notes.map(n => n.title));
+                    const uniqueNewNotes = newNotes.filter(n => !existingNoteTitles.has(n.title));
+                    
+                    state.notes.push(...uniqueNewNotes);
+                    await saveData();
+                    showNotification(`${uniqueNewNotes.length} new note(s) imported successfully!`, 'success');
+                } catch (err) {
+                    console.error("ENEX Import failed:", err);
+                    showNotification('Evernote import failed. The file might be corrupted.', 'error');
+                }
+            };
+            reader.readAsText(file);
+            DOMElements.importEnexInput.value = '';
+        }
+
+        function parseEnexFile(xmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+            
+            const resourceMap = new Map();
+            xmlDoc.querySelectorAll('resource').forEach(resourceNode => {
+                const mime = resourceNode.querySelector('mime')?.textContent;
+                const dataNode = resourceNode.querySelector('data');
+                if (dataNode) {
+                    const hash = dataNode.getAttribute('hash');
+                    const base64Data = dataNode.textContent.replace(/\s/g, '');
+                    const dataUrl = `data:${mime};base64,${base64Data}`;
+                    resourceMap.set(hash, dataUrl);
+                }
+            });
+
+            const noteNodes = xmlDoc.getElementsByTagName('note');
+            const importedNotes = [];
+
+            const formatDate = (enexDate) => {
+                if (!enexDate) return new Date().toISOString();
+                return `${enexDate.substring(0, 4)}-${enexDate.substring(4, 6)}-${enexDate.substring(6, 8)}T${enexDate.substring(9, 11)}:${enexDate.substring(11, 13)}:${enexDate.substring(13, 15)}Z`;
+            };
+
+            for (const noteNode of noteNodes) {
+                const title = noteNode.querySelector('title')?.textContent || 'Untitled Note';
+                let content = noteNode.querySelector('content')?.textContent || '';
+                const created = formatDate(noteNode.querySelector('created')?.textContent);
+                const updated = formatDate(noteNode.querySelector('updated')?.textContent);
+                const tags = Array.from(noteNode.querySelectorAll('tag')).map(t => t.textContent);
+
+                content = content.replace(/<!\[CDATA\[|\]\]>/g, '');
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = content;
+                
+                tempDiv.querySelectorAll('en-media').forEach(mediaNode => {
+                    const hash = mediaNode.getAttribute('hash');
+                    if (resourceMap.has(hash)) {
+                        const img = document.createElement('img');
+                        img.src = resourceMap.get(hash);
+                        mediaNode.replaceWith(img);
+                    }
+                });
+
+                tempDiv.querySelectorAll('en-todo').forEach(todoNode => {
+                    const li = document.createElement('li');
+                    li.classList.add('task-item');
+                    if (todoNode.getAttribute('checked') === 'true') {
+                        li.classList.add('checked');
+                    }
+                    todoNode.replaceWith(li);
+                });
+
+                let finalContent = tempDiv.innerHTML;
+                
+                importedNotes.push({
+                    id: `enex-${Date.now()}-${Math.random()}`,
+                    title: title,
+                    content: sanitizeHTML(marked.parse(finalContent)),
+                    createdAt: created,
+                    updatedAt: updated,
+                    archived: false,
+                    label: tags.length > 0 ? tags[0] : '',
+                    color: state.settings.noteCardColor,
+                });
+            }
+            return importedNotes;
         }
         
         function importMimFile(file, password) {
