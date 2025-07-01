@@ -15,6 +15,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <!-- PeerJS for WebRTC -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -89,7 +91,7 @@
         .toolbar-btn.active { background-color: #4A90E2; }
         input[type="color"] { width: 38px; height: 38px; border: 1px solid #4a5568; border-radius: 4px; padding: 4px; background-color: #2d3748; cursor: pointer; }
         .modal { transition: opacity 0.3s ease-out, transform 0.3s ease-out, background-color 0.3s; }
-        #notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+        #notes-grid, #collaboration-notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
         .note-card {
             border: 2px solid transparent; /* Changed border to 2px for selection state */
             border-radius: 8px;
@@ -240,6 +242,9 @@
         #batch-action-bar {
             transition: transform 0.3s ease-in-out;
         }
+        #collaboration-footer {
+            transition: transform 0.3s ease-in-out;
+        }
          @media (min-width: 768px) {
             #edit-note-pane {
                 width: 50%;
@@ -303,6 +308,10 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     Collections
                  </a>
+                 <a href="#" id="collaboration-link" class="flex items-center p-2 rounded hover:bg-gray-700 font-semibold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    Collaboration
+                 </a>
             </div>
             <div class="flex-grow overflow-y-auto">
                 <div id="labels-container"></div>
@@ -349,6 +358,15 @@
             </div>
             <div id="notes-grid"></div>
         </div>
+        
+        <!-- Collaboration View -->
+        <div id="collaboration-view" class="hidden h-full">
+             <div class="h-full">
+                <div id="collaboration-notes-section" class="custom-scrollbar h-full">
+                    <div id="collaboration-notes-grid"></div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <div id="batch-action-bar" class="fixed bottom-0 left-0 right-0 bg-gray-900 bg-opacity-90 p-4 transform translate-y-full z-40">
@@ -380,6 +398,31 @@
                 <p><strong><span class="text-yellow-400">Securely Export Your Data:</span></strong> You can export all your notes and settings into a secure, encrypted `.mim` file at any time using a password you set.</p>
             </div>
             <button id="close-welcome-modal" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full">Get Started</button>
+        </div>
+    </div>
+    
+    <!-- Collaboration Start Modal -->
+    <div id="collaboration-start-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-8 text-center">
+            <h2 class="text-2xl font-bold mb-6">Real-Time Collaboration</h2>
+            <div class="flex flex-col gap-4">
+                <button id="host-session-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg">Host a New Session</button>
+                <button id="join-session-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg">Join a Session</button>
+            </div>
+             <button id="cancel-collaboration-start-btn" class="mt-6 text-gray-400 hover:text-white">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Join Session Modal -->
+    <div id="join-session-modal" class="hidden modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Join Collaboration Session</h2>
+            <p class="text-gray-400 mb-4">Enter the Room ID provided by the host.</p>
+            <input type="text" id="join-room-id-input" class="text-input-field w-full p-2 rounded mb-6 text-center" placeholder="Room ID">
+            <div class="flex justify-end gap-4">
+                <button id="cancel-join-session-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                <button id="confirm-join-session-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Join</button>
+            </div>
         </div>
     </div>
 
@@ -694,6 +737,14 @@
     <input type="file" id="image-upload-input" class="hidden" accept="image/*">
     <input type="file" id="import-file-input" class="hidden" accept=".mim">
     <input type="file" id="import-enex-input" class="hidden" accept=".enex">
+    
+    <footer id="collaboration-footer" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 bg-opacity-90 p-2 text-sm z-40 flex justify-between items-center px-4">
+        <div>
+            Connected to Room: <span id="footer-room-id" class="font-mono p-1 bg-gray-700 rounded cursor-pointer" title="Click to copy"></span>
+        </div>
+        <div id="peer-list" class="flex items-center gap-2"></div>
+        <button id="leave-session-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs">Leave</button>
+    </footer>
 
     <script>
         // --- DOM Elements ---
@@ -816,6 +867,22 @@
             closeQrCodeModalBtn: document.getElementById('close-qr-code-modal'),
             secureSendToggle: document.getElementById('secure-send-toggle'),
             exportNoteBtn: document.getElementById('export-note-btn'),
+            // Collaboration Elements
+            collaborationLink: document.getElementById('collaboration-link'),
+            collaborationView: document.getElementById('collaboration-view'),
+            leaveSessionBtn: document.getElementById('leave-session-btn'),
+            peerList: document.getElementById('peer-list'),
+            collaborationNotesGrid: document.getElementById('collaboration-notes-grid'),
+            collaborationStartModal: document.getElementById('collaboration-start-modal'),
+            hostSessionBtn: document.getElementById('host-session-btn'),
+            joinSessionBtn: document.getElementById('join-session-btn'),
+            cancelCollaborationStartBtn: document.getElementById('cancel-collaboration-start-btn'),
+            joinSessionModal: document.getElementById('join-session-modal'),
+            joinRoomIdInput: document.getElementById('join-room-id-input'),
+            confirmJoinSessionBtn: document.getElementById('confirm-join-session-btn'),
+            cancelJoinSessionBtn: document.getElementById('cancel-join-session-btn'),
+            collaborationFooter: document.getElementById('collaboration-footer'),
+            footerRoomId: document.getElementById('footer-room-id'),
         };
 
         // --- App State ---
@@ -829,6 +896,12 @@
             selectModeActive: false,
             selectedNoteIds: new Set(),
             showArchived: false,
+            // Collaboration State
+            peer: null,
+            connections: new Map(), // Use a Map to store connections by peerId
+            roomId: null,
+            isHost: false,
+            collaborationNotes: [],
         };
         const defaultSettings = {
             title: 'Collections', bgColor: '#3c6d5e', sidebarColor: '#000000', fontColor: '#ffffff',
@@ -904,6 +977,7 @@
         }
         
         async function saveData() {
+            // Only save non-collaboration data
             try {
                 await Promise.all([
                     db.clear('notes').then(() => Promise.all(state.notes.map(note => db.put('notes', note)))),
@@ -1006,10 +1080,10 @@
             DOMElements.fabAddNoteBtn.style.backgroundColor = settings.fabColor;
 
             const rgbaModalBg = hexToRgba(settings.modalBgColor, settings.modalOpacity);
-            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.videoHelperModal, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal, DOMElements.batchDeleteConfirmModal].forEach(el => {
+            [DOMElements.calendarModal, settingsModal, DOMElements.editNotePane, DOMElements.newNotePane, DOMElements.emailModal, DOMElements.embedModal, DOMElements.iframeHelperModal, DOMElements.videoHelperModal, DOMElements.welcomeModal, DOMElements.confirmClearModal, DOMElements.qrCodeModal, DOMElements.batchDeleteConfirmModal, DOMElements.joinSessionModal, DOMElements.collaborationStartModal].forEach(el => {
                 if (el) {
                     const inner = el.firstElementChild;
-                    if (inner && (el.id === 'embed-modal' || el.id === 'iframe-helper-modal' || el.id === 'video-helper-modal' || el.id === 'confirm-clear-modal' || el.id === 'welcome-modal' || el.id === 'qr-code-modal' || el.id === 'batch-delete-confirm-modal')) {
+                    if (inner && (el.id.includes('-modal'))) {
                         inner.style.backgroundColor = rgbaModalBg;
                     } else {
                         el.style.backgroundColor = rgbaModalBg;
@@ -1186,28 +1260,7 @@
             }
 
             notesToShow.forEach(note => {
-                const card = document.createElement('div');
-                card.className = 'note-card';
-                card.dataset.id = note.id;
-                
-                if (note.archived) {
-                    card.classList.add('is-archived');
-                }
-                if (state.selectedNoteIds.has(note.id)) {
-                    card.classList.add('selected');
-                }
-
-                const baseColor = note.color || state.settings.noteCardColor;
-                const opacity = state.settings.noteCardOpacity || 1;
-                card.style.backgroundColor = hexToRgba(baseColor, opacity);
-                card.innerHTML = `<div class="note-card-title">${note.title}</div><div class="note-card-content">${note.content}</div>`;
-                card.addEventListener('click', () => {
-                    if (state.selectModeActive) {
-                        toggleNoteSelection(note.id, card);
-                    } else {
-                        openEditPane(note.id);
-                    }
-                });
+                const card = createNoteCard(note, openEditPane);
                 DOMElements.notesGrid.appendChild(card);
             });
              new Sortable(DOMElements.notesGrid, { 
@@ -1217,6 +1270,33 @@
                 delay: 200, // Wait 200ms before starting a drag
                 delayOnTouchOnly: true // Only delay on touch devices
             });
+        }
+        
+        function createNoteCard(note, clickHandler) {
+            const card = document.createElement('div');
+            card.className = 'note-card';
+            card.dataset.id = note.id;
+            
+            if (note.archived) {
+                card.classList.add('is-archived');
+            }
+            if (state.selectModeActive && state.selectedNoteIds.has(note.id)) {
+                card.classList.add('selected');
+            }
+
+            const baseColor = note.color || state.settings.noteCardColor;
+            const opacity = state.settings.noteCardOpacity || 1;
+            card.style.backgroundColor = hexToRgba(baseColor, opacity);
+            card.innerHTML = `<div class="note-card-title">${note.title}</div><div class="note-card-content">${note.content}</div>`;
+            
+            card.addEventListener('click', () => {
+                if (state.selectModeActive) {
+                    toggleNoteSelection(note.id, card);
+                } else {
+                    clickHandler(note.id);
+                }
+            });
+            return card;
         }
         
         async function init() {
@@ -1357,19 +1437,23 @@
 
             DOMElements.dashboardLink.addEventListener('click', (e) => {
                 e.preventDefault();
-                DOMElements.dashboardView.classList.remove('hidden');
-                DOMElements.notesView.classList.add('hidden');
-                 closeSidebarMobile();
+                showView('dashboard');
+                closeSidebarMobile();
             });
              DOMElements.allNotesLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 state.showArchived = false;
                 DOMElements.archiveToggle.checked = false;
-                DOMElements.dashboardView.classList.add('hidden');
-                DOMElements.notesView.classList.remove('hidden');
+                showView('notes');
                 renderNotesGrid();
                 closeSidebarMobile();
             });
+            DOMElements.collaborationLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                openModal(DOMElements.collaborationStartModal);
+                closeSidebarMobile();
+            });
+
 
             DOMElements.archiveToggle.addEventListener('change', e => {
                 state.showArchived = e.target.checked;
@@ -1534,6 +1618,22 @@
                     }
                 });
             });
+            
+            // Collaboration Event Listeners
+            DOMElements.hostSessionBtn.addEventListener('click', hostSession);
+            DOMElements.joinSessionBtn.addEventListener('click', () => {
+                closeModal(DOMElements.collaborationStartModal);
+                openModal(DOMElements.joinSessionModal);
+            });
+            DOMElements.cancelCollaborationStartBtn.addEventListener('click', () => closeModal(DOMElements.collaborationStartModal));
+            DOMElements.leaveSessionBtn.addEventListener('click', leaveSession);
+            DOMElements.footerRoomId.addEventListener('click', () => {
+                navigator.clipboard.writeText(state.roomId).then(() => {
+                    showNotification('Room ID copied to clipboard!', 'success');
+                });
+            });
+            DOMElements.confirmJoinSessionBtn.addEventListener('click', joinSession);
+            DOMElements.cancelJoinSessionBtn.addEventListener('click', () => closeModal(DOMElements.joinSessionModal));
         }
 
         async function handleSaveNewNote() {
@@ -1542,41 +1642,103 @@
             const label = DOMElements.newNoteLabelInput.value.trim();
             const color = DOMElements.newNoteCardColorInput.value;
             const now = new Date().toISOString();
-            const newNote = { id: Date.now().toString(), title, content, createdAt: now, updatedAt: now, archived: false, label, color };
-            state.notes.push(newNote);
-            await saveData();
+            const newNote = { id: Date.now().toString(), title, content, createdAt: now, updatedAt: now, archived: false, label, color, author: state.settings.userName };
+            
+            const inCollabView = !DOMElements.collaborationView.classList.contains('hidden');
+
+            if (inCollabView) {
+                const action = { type: 'request_add_note', note: newNote };
+                if (state.isHost) {
+                    handleHostAction(action);
+                } else {
+                    const hostConn = state.connections.get(state.roomId);
+                    if (hostConn && hostConn.open) {
+                        hostConn.send(action);
+                    } else {
+                        showNotification('Cannot add note. Not connected to host.', 'error');
+                    }
+                }
+            } else {
+                state.notes.push(newNote);
+                await saveData();
+                showNotification('Note saved!');
+            }
+            
             closeNewNotePane();
-            showNotification('Note saved!');
         }
 
         async function handleSaveEdit(silent = false) {
             if (!state.currentNoteId) return;
-            const note = state.notes.find(n => n.id === state.currentNoteId);
-            if (!note) return;
+
+            const inCollabView = !DOMElements.collaborationView.classList.contains('hidden');
+            const notesSource = inCollabView ? state.collaborationNotes : state.notes;
             
-            note.title = DOMElements.editNoteTitleInput.value;
-            note.content = sanitizeHTML(DOMElements.editNoteEditor.innerHTML);
-            note.label = DOMElements.editNoteLabelInput.value.trim();
-            note.color = DOMElements.editNoteCardColorInput.value;
-            note.updatedAt = new Date().toISOString();
+            const noteIndex = notesSource.findIndex(n => n.id === state.currentNoteId);
+            if (noteIndex === -1) return;
+
+            const updatedNote = { ...notesSource[noteIndex] };
+            updatedNote.title = DOMElements.editNoteTitleInput.value;
+            updatedNote.content = sanitizeHTML(DOMElements.editNoteEditor.innerHTML);
+            updatedNote.label = DOMElements.editNoteLabelInput.value.trim();
+            updatedNote.color = DOMElements.editNoteCardColorInput.value;
+            updatedNote.updatedAt = new Date().toISOString();
             
-            await saveData();
+            if (inCollabView) {
+                 const action = { type: 'request_update_note', note: updatedNote };
+                 if (state.isHost) {
+                    handleHostAction(action);
+                 } else {
+                    const hostConn = state.connections.get(state.roomId);
+                    if (hostConn && hostConn.open) {
+                        hostConn.send(action);
+                    } else {
+                        if (!silent) showNotification('Cannot send edit. Not connected to host.', 'error');
+                    }
+                 }
+            } else {
+                state.notes[noteIndex] = updatedNote;
+                await saveData();
+                if (!silent) showNotification('Note updated!');
+            }
+
             if (!silent) {
                 closeEditPane();
-                showNotification('Note updated!');
             }
         }
 
         async function handleDeleteNote() {
              if (!state.currentNoteId) return;
-             state.notes = state.notes.filter(note => note.id !== state.currentNoteId);
-             await saveData();
+             const inCollabView = !DOMElements.collaborationView.classList.contains('hidden');
+
+             if (inCollabView) {
+                const action = { type: 'request_delete_note', noteId: state.currentNoteId };
+                if (state.isHost) {
+                    handleHostAction(action);
+                } else {
+                    const hostConn = state.connections.get(state.roomId);
+                     if (hostConn && hostConn.open) {
+                        hostConn.send(action);
+                    } else {
+                        showNotification('Cannot send delete request. Not connected to host.', 'error');
+                    }
+                }
+             } else {
+                state.notes = state.notes.filter(note => note.id !== state.currentNoteId);
+                await saveData();
+                showNotification('Note deleted.', 'error');
+             }
+             
              closeEditPane();
-             showNotification('Note deleted.', 'error');
         }
 
         async function handleArchiveNote() {
              if (!state.currentNoteId) return;
+             const inCollabView = !DOMElements.collaborationView.classList.contains('hidden');
+             if (inCollabView) {
+                showNotification("Archiving is disabled in collaboration mode.", "error");
+                return;
+             }
+
              const note = state.notes.find(n => n.id === state.currentNoteId);
              note.archived = !note.archived;
              note.updatedAt = new Date().toISOString();
@@ -2121,10 +2283,12 @@
 
         function openEditPane(noteId) {
             state.currentNoteId = noteId;
-            const note = state.notes.find(n => n.id === noteId);
+            const inCollabView = !DOMElements.collaborationView.classList.contains('hidden');
+            const notesSource = inCollabView ? state.collaborationNotes : state.notes;
+            const note = notesSource.find(n => n.id === noteId);
             if (!note) return;
 
-            const allLabels = [...new Set(state.notes.map(n => n.label).filter(Boolean))];
+            const allLabels = [...new Set(notesSource.map(n => n.label).filter(Boolean))];
             DOMElements.labelsDatalist.innerHTML = allLabels.map(l => `<option value="${l}"></option>`).join('');
 
             DOMElements.editNoteTitleInput.value = note.title;
@@ -2135,6 +2299,9 @@
             DOMElements.archiveNoteBtn.title = note.archived ? 'Unarchive' : 'Archive';
             DOMElements.archiveNoteBtn.classList.toggle('bg-green-500', note.archived);
             DOMElements.archiveNoteBtn.classList.toggle('hover:bg-green-600', note.archived);
+            DOMElements.archiveNoteBtn.style.display = inCollabView ? 'none' : 'inline-flex';
+            DOMElements.shareNoteBtn.style.display = inCollabView ? 'none' : 'inline-flex';
+
 
             DOMElements.editNotePane.classList.add('is-open');
             DOMElements.modalOverlay.classList.remove('hidden');
@@ -2178,7 +2345,9 @@
                                  !DOMElements.welcomeModal.classList.contains('hidden') ||
                                  !DOMElements.qrCodeModal.classList.contains('hidden') ||
                                  !DOMElements.confirmClearModal.classList.contains('hidden') ||
-                                 !DOMElements.batchDeleteConfirmModal.classList.contains('hidden');
+                                 !DOMElements.batchDeleteConfirmModal.classList.contains('hidden') ||
+                                 !DOMElements.joinSessionModal.classList.contains('hidden') ||
+                                 !DOMElements.collaborationStartModal.classList.contains('hidden');
             
             const isSidebarOpen = !DOMElements.sidebar.classList.contains('-translate-x-full');
 
@@ -2211,6 +2380,8 @@
             closeModal(DOMElements.confirmClearModal);
             closeModal(DOMElements.qrCodeModal);
             closeModal(DOMElements.batchDeleteConfirmModal);
+            closeModal(DOMElements.joinSessionModal);
+            closeModal(DOMElements.collaborationStartModal);
             closeSidebarMobile();
         }
 
@@ -2289,6 +2460,20 @@
                 notification.classList.add('-translate-y-full');
                  setTimeout(() => notification.classList.add('hidden'), 500);
             }, 3000);
+        }
+        
+        function showView(viewName) {
+            ['dashboard', 'notes', 'collaboration'].forEach(view => {
+                DOMElements[view + 'View'].classList.add('hidden');
+            });
+            DOMElements[viewName + 'View'].classList.remove('hidden');
+
+            // Special handling for fab
+            if (viewName === 'collaboration') {
+                DOMElements.fabAddNoteBtn.classList.remove('hidden'); // Everyone can add notes now
+            } else {
+                DOMElements.fabAddNoteBtn.classList.remove('hidden');
+            }
         }
 
         function renderCalendar() {
@@ -2487,7 +2672,241 @@
                 showNotification('Export failed due to an encryption error.', 'error');
             }
         }
+        
+        // --- Collaboration Logic (WebRTC with PeerJS) ---
 
+        function initPeer() {
+            if (state.peer) {
+                state.peer.destroy();
+            }
+            
+            const peerConfig = {
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                secure: true,
+                debug: 2
+            };
+
+            try {
+                state.peer = new Peer(undefined, peerConfig);
+            } catch (e) {
+                console.error("Failed to create Peer instance", e);
+                showNotification("Could not initialize collaboration service.", "error");
+                return;
+            }
+
+            state.peer.on('open', (id) => {
+                console.log('PeerJS open. My ID is:', id);
+                if (state.isHost) {
+                    state.roomId = id;
+                    DOMElements.footerRoomId.textContent = id;
+                    showNotification('Session hosted! Share the Room ID.', 'success');
+                } else {
+                    if (state.roomId) {
+                        console.log(`Client is open. Attempting to connect to host: ${state.roomId}`);
+                        const conn = state.peer.connect(state.roomId, {
+                            metadata: { userName: state.settings.userName },
+                            reliable: true
+                        });
+                        setupConnection(conn);
+                    }
+                }
+            });
+
+            state.peer.on('connection', (conn) => {
+                console.log('Host received an incoming connection from', conn.peer);
+                setupConnection(conn);
+            });
+
+            state.peer.on('error', (err) => {
+                console.error('PeerJS error:', err);
+                let message = `Connection error: ${err.type}`;
+                if (err.type === 'peer-unavailable') {
+                    message = `Could not find the host. Please check the Room ID.`;
+                } else if (err.type === 'network') {
+                    message = 'Network error. Please check your connection.';
+                } else if (err.type === 'server-error' || err.type === 'socket-error' || err.type === 'disconnected') {
+                     message = 'Cannot connect to the collaboration server.';
+                } else if (err.type === 'webrtc') {
+                     message = 'WebRTC connection failed.';
+                }
+                showNotification(message, 'error');
+                leaveSession();
+            });
+        }
+
+        function hostSession() {
+            closeModal(DOMElements.collaborationStartModal);
+            state.isHost = true;
+            initPeer();
+            showView('collaboration');
+            DOMElements.collaborationFooter.classList.remove('hidden');
+            DOMElements.collaborationFooter.classList.remove('translate-y-full');
+            renderCollaborationNotesGrid();
+        }
+
+        function joinSession() {
+            const roomId = DOMElements.joinRoomIdInput.value.trim();
+            if (!roomId) {
+                showNotification("Please enter a Room ID.", "error");
+                return;
+            };
+            closeModal(DOMElements.joinSessionModal);
+            state.isHost = false;
+            state.roomId = roomId;
+            initPeer();
+        }
+
+        function leaveSession() {
+            if (state.peer) {
+                state.peer.destroy();
+            }
+            state.peer = null;
+            state.connections.clear();
+            state.roomId = null;
+            state.isHost = false;
+            state.collaborationNotes = [];
+            
+            showView('dashboard');
+            DOMElements.collaborationFooter.classList.add('hidden');
+            DOMElements.collaborationFooter.classList.add('translate-y-full');
+            DOMElements.collaborationNotesGrid.innerHTML = '';
+            DOMElements.peerList.innerHTML = '';
+            showNotification('You have left the session.', 'info');
+        }
+
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                console.log('Connection established with', conn.peer);
+                conn.reliable = true;
+                state.connections.set(conn.peer, conn);
+                const peerName = conn.metadata?.userName || 'Anonymous';
+                showNotification(`${peerName} has joined the session.`, 'success');
+                updatePeerList();
+
+                if (state.isHost) {
+                    conn.send({ 
+                        type: 'full_sync', 
+                        notes: state.collaborationNotes,
+                        hostName: state.settings.userName
+                    });
+                }
+            });
+
+            conn.on('data', (data) => {
+                console.log('Received data:', data, 'from', conn.peer);
+                handleReceivedData(data, conn.peer);
+            });
+
+            conn.on('close', () => {
+                const peerName = conn.metadata?.userName || 'A user';
+                showNotification(`${peerName} has left the session.`, 'error');
+                state.connections.delete(conn.peer);
+                updatePeerList();
+            });
+
+            conn.on('error', (err) => {
+                console.error('Connection error:', err);
+                showNotification(`Connection with ${conn.metadata?.userName || 'a user'} lost.`, 'error');
+                state.connections.delete(conn.peer);
+                updatePeerList();
+            });
+        }
+        
+        function handleHostAction(action) {
+            let broadcastPayload = null;
+            switch(action.type) {
+                case 'request_add_note':
+                    state.collaborationNotes.push(action.note);
+                    broadcastPayload = { type: 'add_note', note: action.note };
+                    break;
+                case 'request_update_note':
+                    const noteIndex = state.collaborationNotes.findIndex(n => n.id === action.note.id);
+                    if (noteIndex > -1) {
+                        state.collaborationNotes[noteIndex] = action.note;
+                        broadcastPayload = { type: 'update_note', note: action.note };
+                    }
+                    break;
+                case 'request_delete_note':
+                    state.collaborationNotes = state.collaborationNotes.filter(n => n.id !== action.noteId);
+                    broadcastPayload = { type: 'delete_note', noteId: action.noteId };
+                    break;
+            }
+            if (broadcastPayload) {
+                renderCollaborationNotesGrid();
+                broadcastData(broadcastPayload);
+            }
+        }
+
+        function handleReceivedData(data, fromPeerId) {
+            if (state.isHost) {
+                handleHostAction(data);
+            } else {
+                // Clients receive broadcasts and update their state
+                switch(data.type) {
+                    case 'full_sync':
+                        state.collaborationNotes = data.notes;
+                        renderCollaborationNotesGrid();
+                        showView('collaboration');
+                        DOMElements.footerRoomId.textContent = state.roomId;
+                        DOMElements.collaborationFooter.classList.remove('hidden');
+                        DOMElements.collaborationFooter.classList.remove('translate-y-full');
+                        showNotification(`Joined session hosted by ${data.hostName || 'Host'}!`, 'success');
+                        break;
+                    case 'add_note':
+                        state.collaborationNotes.push(data.note);
+                        renderCollaborationNotesGrid();
+                        break;
+                    case 'update_note':
+                        const noteIndex = state.collaborationNotes.findIndex(n => n.id === data.note.id);
+                        if (noteIndex > -1) {
+                            state.collaborationNotes[noteIndex] = data.note;
+                        }
+                        renderCollaborationNotesGrid();
+                        break;
+                    case 'delete_note':
+                        state.collaborationNotes = state.collaborationNotes.filter(n => n.id !== data.noteId);
+                        renderCollaborationNotesGrid();
+                        break;
+                }
+            }
+        }
+        
+        function broadcastData(data) {
+            console.log('Host is broadcasting data:', data);
+            // The host sends the update to all connected clients.
+            for (const conn of state.connections.values()) {
+                if (conn && conn.open) {
+                    conn.send(data);
+                }
+            }
+        }
+        
+        function renderCollaborationNotesGrid() {
+            DOMElements.collaborationNotesGrid.innerHTML = '';
+            state.collaborationNotes.forEach(note => {
+                const card = createNoteCard(note, openEditPane);
+                DOMElements.collaborationNotesGrid.appendChild(card);
+            });
+        }
+        
+        function updatePeerList() {
+            DOMElements.peerList.innerHTML = '';
+            // Add self
+            const selfEl = document.createElement('div');
+            selfEl.className = 'p-1 px-2 rounded-full bg-blue-500 text-sm';
+            selfEl.textContent = `${state.settings.userName} (You)`;
+            DOMElements.peerList.appendChild(selfEl);
+            
+            // Add connected peers
+            for (const conn of state.connections.values()) {
+                const peerEl = document.createElement('div');
+                peerEl.className = 'p-1 px-2 rounded-full bg-gray-600 text-sm';
+                peerEl.textContent = conn.metadata.userName || 'Anonymous';
+                DOMElements.peerList.appendChild(peerEl);
+            }
+        }
 
         // --- Initial Load ---
         init();
