@@ -12,9 +12,9 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <!-- 4. QR Code Scanner -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <!-- 5. NEW: Quill Rich Text Editor (JS) -->
+    <!-- 5. Quill Rich Text Editor (JS) -->
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
-    <!-- 6. NEW: Quill Rich Text Editor (CSS) -->
+    <!-- 6. Quill Rich Text Editor (CSS) -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
     
     <script>
@@ -62,11 +62,13 @@
         .section-placeholder {
             width: 100%;
             margin: 0.5rem 0;
+            height: 4rem; /* Give placeholder a small height */
         }
         .staging-placeholder {
             margin: 0 0.5rem;
+            width: 4rem; /* Give placeholder a small width */
         }
-        /* NEW: Placeholder for dragging SECTIONS */
+        /* Placeholder for dragging SECTIONS */
         .section-drag-placeholder {
             background: rgba(0, 0, 0, 0.1);
             border: 2px dashed #4f46e5;
@@ -103,7 +105,7 @@
             display: none; width: 90%; max-width: 500px;
             background-color: #ffffff; color: #111827;
         }
-        /* NEW: Larger modal for editor */
+        /* Larger modal for editor */
         #modal-container.modal-lg {
             max-width: 800px;
         }
@@ -185,37 +187,70 @@
         /* QR Code Scanner */
         #qr-reader { width: 100%; border: 2px dashed #4f46e5; border-radius: 8px; }
 
-        /* NEW: Quill Editor Styles */
+        /* Quill Editor Styles */
         #quill-editor {
-            height: 300px; /* Give the editor a set height */
+            height: 300px; 
             background-color: #f9fafb;
             color: #111827;
         }
-        /* Ensure Quill tooltips are above the modal */
         .ql-tooltip { z-index: 1005; }
         .ql-snow .ql-editor img { max-width: 100%; height: auto; }
 
-        /* NEW: Desktop Layout Toggle Styles */
+        /* Desktop Layout Toggle Styles */
         #board-container.desktop-vertical {
             flex-direction: column;
             overflow-y: auto;
             overflow-x: hidden;
-            gap: 1.5rem; /* 24px */
+            gap: 1.5rem; 
         }
         #board-container.desktop-vertical > .kanban-section {
-            width: 98%; /* A bit of padding */
+            width: 98%; 
             margin: 0 auto;
-            height: auto; /* Auto-height for vertical stack */
+            height: auto; 
         }
-        
-        #layout-toggle-btns button {
-            display: none; /* Hide by default */
-        }
-        /* Show only on desktop */
+        #layout-toggle-btns button { display: none; }
         @media (min-width: 769px) {
             #layout-toggle-btns button {
                 display: inline-flex;
             }
+        }
+        
+        /* --- NEW: Toast Notification Styles --- */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-width: 320px;
+        }
+        .toast-notification {
+            background-color: white;
+            color: #111827;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.4s ease;
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* State for sliding in */
+        .toast-enter {
+            transform: translateX(calc(100% + 1rem));
+            opacity: 0;
+        }
+        /* State for sliding out */
+        .toast-exit {
+            transform: translateX(calc(100% + 1rem));
+            opacity: 0;
+        }
+        .toast-notification strong {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
         }
 
     </style>
@@ -225,7 +260,6 @@
     <!-- =========== DESKTOP UI =========== -->
     <div id="desktop-ui">
         <!-- KANBAN BOARD -->
-        <!-- MODIFIED: Added default class -->
         <main id="board-container" class="flex-1 flex gap-6 p-6 overflow-x-auto horizontal-scroll desktop-horizontal">
             <!-- Sections and cards will be dynamically generated here -->
         </main>
@@ -240,7 +274,7 @@
                     <div id="connection-status" class="text-sm text-gray-500">Offline</div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <!-- NEW: Layout Toggles -->
+                    <!-- Layout Toggles -->
                     <div id="layout-toggle-btns" class="flex items-center space-x-2 mr-4">
                         <button id="layout-horizontal-btn" title="Stack Horizontally" class="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="8" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="16" y2="21"></line></svg>
@@ -271,12 +305,9 @@
     
     <!-- =========== MOBILE UI =========== -->
     <div id="mobile-ui">
-        <!-- Mobile Section Swiper -->
         <main id="mobile-swiper">
             <!-- Mobile sections injected here -->
         </main>
-        
-        <!-- Mobile Staging Area -->
         <footer class="flex-shrink-0">
             <div id="mobile-staging-toggle">Staging Area</div>
             <div id="mobile-staging-drawer" class="card-list" data-section-id="staging">
@@ -286,8 +317,6 @@
                 <!-- Mobile staging cards injected here -->
             </div>
         </footer>
-
-        <!-- ADDED: Mobile "Join Session" button -->
         <button id="join-session-btn-mobile" class="absolute top-4 right-4 px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-500 transition-all z-50">
             Join
         </button>
@@ -295,15 +324,12 @@
     </div>
 
     <!-- =========== SHARED UI (Modals, Chat, etc) =========== -->
-
-    <!-- FILE DROP OVERLAY -->
     <div id="drop-zone" class="text-white text-2xl font-bold"><p>Drop .mim file to load</p></div>
     
-    <!-- MODAL UI -->
     <div id="modal-backdrop"></div>
     <div id="modal-container" class="bg-white rounded-lg shadow-2xl overflow-hidden">
         <div class="p-6">
-            <h2 id="modal-title" class="text-2xl font-bold text-gray-900 mb-6">Modal Title</h2>
+            <h2 id="modal-title-text" class="text-2xl font-bold text-gray-900 mb-6">Modal Title</h2>
             <div id="modal-content" class="text-gray-700">
                 <!-- Modal content injected here -->
             </div>
@@ -332,6 +358,9 @@
             </button>
         </div>
     </div>
+    
+    <!-- NEW: Toast Notification Container -->
+    <div id="toast-container"></div>
 
     <!-- MAIN JAVASCRIPT LOGIC -->
     <script>
@@ -345,7 +374,7 @@
         const dropZone = document.getElementById('drop-zone');
         const modalBackdrop = document.getElementById('modal-backdrop');
         const modalContainer = document.getElementById('modal-container');
-        const modalTitle = document.getElementById('modal-title');
+        const modalTitleText = document.getElementById('modal-title-text'); 
         const modalContent = document.getElementById('modal-content');
         const modalCancelBtn = document.getElementById('modal-cancel-btn');
         const modalConfirmBtn = document.getElementById('modal-confirm-btn');
@@ -368,19 +397,23 @@
         const chatInput = document.getElementById('chat-input');
         const chatSendBtn = document.getElementById('chat-send-btn');
         
-        // --- NEW: Layout Toggles ---
+        // --- Layout Toggles ---
         const layoutHorizontalBtn = document.getElementById('layout-horizontal-btn');
         const layoutVerticalBtn = document.getElementById('layout-vertical-btn');
+        
+        // --- Toast Container ---
+        const toastContainer = document.getElementById('toast-container');
 
         let state = {
             sections: [],
             cards: [],
             chat: [],
-            desktopLayout: 'horizontal' // NEW
+            users: {}, // NEW: Map of peerId -> userName
+            desktopLayout: 'horizontal'
         };
         
         let onModalConfirm = null;
-        let quillEditor = null; // NEW: Store Quill instance
+        let quillEditor = null;
         
         // --- PeerJS variables ---
         let peer = null;
@@ -399,6 +432,7 @@
             if (savedState) {
                 state = JSON.parse(savedState);
                 if (!state.chat) state.chat = [];
+                if (!state.users) state.users = {}; // NEW
                 if (!state.desktopLayout) state.desktopLayout = 'horizontal';
                 
                 // Data migration
@@ -410,9 +444,11 @@
                         migrated = true;
                     }
                     if (card.hasOwnProperty('assetTag')) {
-                        card.notes = card.assetTag;
-                        delete card.assetTag;
-                        migrated = true;
+                        if (!card.notes) {
+                           card.notes = card.assetTag;
+                           delete card.assetTag;
+                           migrated = true;
+                        }
                     }
                 });
                 if (migrated) {
@@ -429,6 +465,7 @@
                     ],
                     cards: [],
                     chat: [],
+                    users: {},
                     desktopLayout: 'horizontal'
                 };
             }
@@ -449,7 +486,6 @@
         function renderDesktopUI() {
             boardContainer.innerHTML = '';
             
-            // NEW: Apply layout class
             boardContainer.className = 'flex-1 flex gap-6 p-6 overflow-x-auto horizontal-scroll'; // Reset
             if (state.desktopLayout === 'vertical') {
                 boardContainer.classList.add('desktop-vertical');
@@ -459,7 +495,6 @@
                 boardContainer.classList.remove('desktop-vertical', 'overflow-y-auto');
             }
 
-            // Render sections in order
             state.sections
                 .sort((a, b) => a.order - b.order)
                 .forEach(section => {
@@ -479,7 +514,6 @@
             
             boardContainer.appendChild(createAddSectionButton());
             
-            // Render Staging Area
             stagingArea.innerHTML = '';
             const stagingCards = state.cards
                 .filter(card => card.sectionId === 'staging')
@@ -493,10 +527,10 @@
         }
         
         function renderMobileUI() {
-            mobileSwiper.innerHTML = ''; // Clear swiper
+            mobileSwiper.innerHTML = ''; 
             
             state.sections
-                .sort((a, b) => a.order - b.order) // Use order for mobile too
+                .sort((a, b) => a.order - b.order)
                 .forEach(section => {
                     const sectionEl = createSectionElement(section);
                     const cardList = sectionEl.querySelector('.card-list');
@@ -513,7 +547,6 @@
             
             mobileSwiper.appendChild(createAddSectionButton());
             
-            // Render Staging Drawer
             mobileStagingDrawer.innerHTML = '';
             const stagingCards = state.cards
                 .filter(card => card.sectionId === 'staging')
@@ -528,18 +561,16 @@
         
         function createSectionElement(section) {
             const sectionEl = document.createElement('div');
-            // MODIFIED: Added draggable=true for the element
-            sectionEl.className = 'kanban-section w-80 rounded-lg shadow-xl flex flex-col flex-shrink-0 overflow-hidden';
+            sectionEl.className = 'kanban-section w-80 rounded-lg shadow-xl flex flex-col flex-shrink-0 overflow-hidden relative';
             sectionEl.dataset.sectionId = section.id;
-            sectionEl.draggable = true; // NEW: Make the section draggable
             
             const headerColor = section.color || '#6b7280';
             const headerTextColor = '#ffffff';
 
             sectionEl.innerHTML = `
-                <div class="kanban-section-header p-4 flex justify-between items-center cursor-grab active:cursor-grabbing" style="background-color: ${headerColor}; color: ${headerTextColor};">
+                <div draggable="true" class="kanban-section-header p-4 flex justify-between items-center cursor-grab active:cursor-grabbing" style="background-color: ${headerColor}; color: ${headerTextColor};">
                     <h2 class="font-semibold text-lg">${section.title}</h2>
-                    <button class="delete-section-btn hover:text-gray-300" data-section-id="${section.id}" style="color: ${headerTextColor};">
+                    <button class="delete-section-btn hover:text-gray-300 z-10" data-section-id="${section.id}" style="color: ${headerTextColor};">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -560,39 +591,31 @@
                 </svg>
                 + Add New Section
             `;
-            // NEW: Add a class for vertical layout
             if(state.desktopLayout === 'vertical') {
                 addSectionBtnEl.classList.add('w-full', 'mx-auto', 'max-w-7xl');
             }
             return addSectionBtnEl;
         }
 
-        /**
-         * MODIFIED: Creates the new fixed-height card element.
-         */
         function createCardElement(card) {
             const cardEl = document.createElement('div');
             const isStaging = card.sectionId === 'staging';
             const cardWidthClass = isStaging ? 'w-64' : 'w-full';
 
-            // MODIFIED: Removed cursor-grab, whole card is now a button
-            cardEl.className = `kanban-card p-4 bg-kanban-card text-gray-900 rounded-md shadow hover:shadow-lg transition-all ${cardWidthClass} flex-shrink-0`;
+            cardEl.className = `kanban-card p-4 bg-kanban-card text-gray-900 rounded-md shadow hover:shadow-lg transition-all ${cardWidthClass} flex-shrink-0 relative`;
             cardEl.dataset.cardId = card.id;
             
-            // Check for notes or images
             const hasNotes = card.notes && card.notes.trim() !== '' && card.notes.trim() !== '<p><br></p>';
             const hasImages = card.notes && card.notes.includes('<img');
 
             cardEl.innerHTML = `
                 <div class="flex justify-between items-start mb-2">
                     <p class="font-medium text-gray-800 break-all">${card.title}</p>
-                    <button class="delete-card-btn text-gray-400 hover:text-red-500 z-10" data-card-id="${card.id}">
+                    <button class="delete-card-btn text-gray-400 hover:text-red-500 z-20" data-card-id="${card.id}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
                 
-                <!-- Placeholder content removed -->
-
                 <div class="flex justify-between items-end mt-4">
                     <div class="flex space-x-2">
                         ${hasNotes ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>` : ''}
@@ -601,32 +624,36 @@
                     <div class="h-8 w-8 bg-gray-300 rounded-full flex-shrink-0"></div>
                 </div>
                 
-                <!-- NEW: Draggable handle for staging area, and click listener for everywhere -->
-                <div class="absolute inset-0 cursor-pointer" data-action="edit"></div>
-                ${isStaging ? `<div class="absolute inset-0 cursor-grab" data-action="drag" draggable="true"></div>` : ''}
+                <div class="absolute inset-0 cursor-pointer z-10" data-action="edit"></div>
+                
+                ${isStaging ? 
+                    `<div class="absolute inset-0 cursor-grab z-0" data-action="drag" draggable="true"></div>` : 
+                    ''}
             `;
             
-            // NEW: Add specific event listeners
-            const dragHandle = cardEl.querySelector('[data-action="drag"]');
-            const editHandle = cardEl.querySelector('[data-action="edit"]');
-            
-            if (isStaging && dragHandle) {
-                // In staging, only the drag handle is draggable
-                dragHandle.addEventListener('dragstart', handleDragStart);
-                dragHandle.addEventListener('dragend', handleDragEnd);
-            } else if (!isStaging) {
-                // In sections, the whole card is draggable
+            if (!isStaging) {
                 cardEl.draggable = true;
-                cardEl.addEventListener('dragstart', handleDragStart);
-                cardEl.addEventListener('dragend', handleDragEnd);
             }
-
-            editHandle.addEventListener('click', handleEditCardClick);
 
             return cardEl;
         }
         
-        function renderChat() { /* ... (no changes) ... */ }
+        function renderChat() { 
+            chatMessages.innerHTML = '';
+            [...state.chat].reverse().forEach(msg => {
+                const msgEl = document.createElement('div');
+                const userName = state.users[msg.peerId] || `Peer ${msg.peerId.slice(0, 4)}...`;
+                
+                if (msg.peerId === myPeerId) {
+                    msgEl.className = 'my-message';
+                    msgEl.textContent = msg.text;
+                } else {
+                    msgEl.className = 'peer-message';
+                    msgEl.innerHTML = `<strong class="block text-xs">${userName}</strong> ${msg.text}`;
+                }
+                chatMessages.appendChild(msgEl);
+            });
+        }
 
         function attachEventListeners() {
             // Click Listeners
@@ -636,33 +663,42 @@
             const addSectionBtn = document.getElementById('add-section-btn');
             if (addSectionBtn) addSectionBtn.onclick = handleAddSectionClick;
             
-            document.querySelectorAll('.delete-section-btn').forEach(btn => btn.onclick = handleDeleteSectionClick);
-            // Delete card buttons are attached in createCardElement
+            const mainApp = document.body;
             
+            mainApp.removeEventListener('click', handleAppClick); 
+            mainApp.addEventListener('click', handleAppClick);
+
             // Drag Listeners (CARDS)
-            // MODIFIED: Card listeners are attached in createCardElement
+            mainApp.removeEventListener('dragstart', handleDragStart); 
+            mainApp.addEventListener('dragstart', handleDragStart);
+            mainApp.removeEventListener('dragend', handleDragEnd);
+            mainApp.addEventListener('dragend', handleDragEnd);
+            
             const dropZones = document.querySelectorAll('.card-list');
             dropZones.forEach(zone => {
+                zone.removeEventListener('dragover', handleDragOver);
                 zone.addEventListener('dragover', handleDragOver);
+                zone.removeEventListener('drop', handleDrop);
                 zone.addEventListener('drop', handleDrop);
             });
 
-            // NEW: Drag Listeners (SECTIONS)
-            const sections = document.querySelectorAll('.kanban-section');
-            const board = document.getElementById('board-container');
-            sections.forEach(section => {
-                section.addEventListener('dragstart', handleSectionDragStart);
-                section.addEventListener('dragend', handleSectionDragEnd);
-            });
-            board.addEventListener('dragover', handleSectionDragOver);
-            board.addEventListener('drop', handleSectionDrop);
+            // Drag Listeners (SECTIONS)
+            mainApp.removeEventListener('dragstart', handleSectionDragStart);
+            mainApp.addEventListener('dragstart', handleSectionDragStart);
+            mainApp.removeEventListener('dragend', handleSectionDragEnd);
+            mainApp.addEventListener('dragend', handleSectionDragEnd);
+            
+            boardContainer.removeEventListener('dragover', handleSectionDragOver);
+            boardContainer.addEventListener('dragover', handleSectionDragOver);
+            boardContainer.removeEventListener('drop', handleSectionDrop);
+            boardContainer.addEventListener('drop', handleSectionDrop);
 
             // Mobile Listeners
             mobileStagingToggle.onclick = () => {
                 mobileStagingDrawer.classList.toggle('active');
             };
             
-            // NEW: Layout Toggle Listeners
+            // Layout Toggle Listeners
             layoutHorizontalBtn.onclick = () => {
                 state.desktopLayout = 'horizontal';
                 saveAndRenderLocally();
@@ -673,6 +709,30 @@
             };
         }
         
+        function handleAppClick(e) {
+            const deleteCardBtn = e.target.closest('.delete-card-btn');
+            if (deleteCardBtn) {
+                e.stopPropagation();
+                handleDeleteCardClick(deleteCardBtn.dataset.cardId);
+                return;
+            }
+            
+            const deleteSectionBtn = e.target.closest('.delete-section-btn');
+            if (deleteSectionBtn) {
+                e.stopPropagation();
+                handleDeleteSectionClick(deleteSectionBtn.dataset.sectionId);
+                return;
+            }
+            
+            const editCardTarget = e.target.closest('[data-action="edit"]');
+            if (editCardTarget) {
+                e.stopPropagation();
+                const cardId = editCardTarget.closest('.kanban-card').dataset.cardId;
+                handleEditCardClick(cardId);
+                return;
+            }
+        }
+        
         function saveAndRenderLocally() {
             saveState();
             renderAll();
@@ -680,11 +740,10 @@
         
         // --- MODAL HANDLERS ---
         function showModal(title, contentHTML, onConfirmCallback, modalSize = 'md') {
-            modalTitle.textContent = title;
+            modalTitleText.textContent = title; 
             modalContent.innerHTML = contentHTML;
             onModalConfirm = onConfirmCallback;
             
-            // NEW: Handle modal size
             if (modalSize === 'lg') {
                 modalContainer.classList.add('modal-lg');
             } else {
@@ -702,7 +761,7 @@
         
         function hideModal() {
             onModalConfirm = null;
-            if (quillEditor) quillEditor = null; // NEW: Clear Quill instance
+            if (quillEditor) quillEditor = null;
             modalContainer.classList.remove('active', 'modal-lg');
             modalBackdrop.classList.remove('active');
             modalContent.innerHTML = '';
@@ -716,29 +775,53 @@
         modalConfirmBtn.onclick = () => {
             if (onModalConfirm) onModalConfirm();
         };
+        
+        // --- NEW: Toast Notification Function ---
+        function showToast(title, message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification toast-enter';
+            // Truncate long messages
+            const snippet = message.length > 50 ? message.substring(0, 50) + '...' : message;
+            toast.innerHTML = `<strong>${title}</strong><p>${snippet}</p>`;
+            toastContainer.prepend(toast); 
+            
+            // Trigger the slide-in animation
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    toast.classList.remove('toast-enter');
+                });
+            });
+
+            // Set timers to slide out and remove
+            setTimeout(() => {
+                toast.classList.add('toast-exit');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                });
+            }, 3000); // 3 seconds visible
+        }
 
         // --- CLICK HANDLERS ---
         
-        // MODIFIED: Simplified to only ask for Title
         function handleAddCardClick() {
             const content = `
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                        <input type="text" id="modal-title" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="text" id="modal-card-title-input" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                     <p id="modal-error" class="text-red-500 text-sm h-4"></p>
                 </div>
             `;
             showModal('Add New Card', content, () => {
-                const title = document.getElementById('modal-title').value;
+                const title = document.getElementById('modal-card-title-input').value; 
                 const errorEl = document.getElementById('modal-error');
                 
                 if (title) {
                     const newCard = {
                         id: `card-${Date.now()}`,
                         title: title,
-                        notes: '', // Start with empty notes
+                        notes: '', 
                         sectionId: 'staging',
                         order: state.cards.filter(c => c.sectionId === 'staging').length
                     };
@@ -748,16 +831,12 @@
                     hideModal();
                 } else {
                     errorEl.textContent = 'Title is required.';
-                    document.getElementById('modal-title').focus();
+                    document.getElementById('modal-card-title-input').focus();
                 }
             });
         }
         
-        // NEW: Handle clicking a card to edit it
-        function handleEditCardClick(e) {
-            e.stopPropagation();
-            const cardEl = e.currentTarget.closest('.kanban-card');
-            const cardId = cardEl.dataset.cardId;
+        function handleEditCardClick(cardId) {
             const card = state.cards.find(c => c.id === cardId);
             if (!card) return;
             
@@ -767,18 +846,15 @@
             `;
             
             showModal(`Edit Card: ${card.title}`, content, () => {
-                // Confirm callback (Save)
                 const notesContent = quillEditor.root.innerHTML;
                 const updatedCard = { ...card, notes: notesContent };
                 
                 const action = { type: 'UPDATE_CARD', card: updatedCard };
                 submitAction(action);
                 hideModal();
-            }, 'lg'); // NEW: Use large modal
+            }, 'lg'); 
             
-            // Initialize Quill
-            // Use setTimeout to ensure modal is visible before Quill init
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 try {
                     quillEditor = new Quill('#quill-editor', {
                         theme: 'snow',
@@ -793,7 +869,6 @@
                         }
                     });
                     
-                    // NEW: Override image handler
                     quillEditor.getModule('toolbar').addHandler('image', () => {
                         const input = document.createElement('input');
                         input.setAttribute('type', 'file');
@@ -809,48 +884,137 @@
                                     quillEditor.insertEmbed(range.index, 'image', e.target.result);
                                     quillEditor.setSelection(range.index + 1);
                                 };
-                                reader.readAsDataURL(file); // Convert to base64
+                                reader.readAsDataURL(file);
                             } else {
                                 console.warn('You can only upload images.');
                             }
                         };
                     });
 
-                    // Load existing content
                     quillEditor.root.innerHTML = card.notes;
                 } catch (err) {
                     console.error("Quill init failed:", err);
                     modalContent.innerHTML = "<p class='text-red-500'>Error loading editor.</p>";
                 }
-            }, 50);
+            });
         }
         
-        function handleAddSectionClick() { /* ... (no changes, still works) ... */ }
-        function handleDeleteSectionClick(e) { /* ... (no changes, still works) ... */ }
-        function handleDeleteCardClick(e) { /* ... (no changes, still works) ... */ }
+        function handleAddSectionClick() {
+            const sectionColors = ['#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#6b7280', '#8b5cf6', '#ef4444'];
+            let selectedColor = sectionColors[0]; 
+            const colorSwatchesHTML = sectionColors.map((color, index) => `
+                <div class="color-swatch ${index === 0 ? 'selected' : ''}" style="background-color: ${color};" data-color="${color}"></div>
+            `).join('');
+
+            const content = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Section Title</label>
+                        <input type="text" id="modal-section-title-input" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Header Color</label>
+                        <div class="flex space-x-2 mt-2 flex-wrap gap-2">
+                            ${colorSwatchesHTML}
+                        </div>
+                    </div>
+                    <p id="modal-error" class="text-red-500 text-sm h-4"></p>
+                </div>
+            `;
+            
+            showModal('Add New Section', content, () => {
+                const title = document.getElementById('modal-section-title-input').value;
+                const errorEl = document.getElementById('modal-error');
+                
+                if (title) {
+                    const newSection = {
+                        id: `sec-${Date.now()}`,
+                        title: title,
+                        color: selectedColor,
+                        order: state.sections.length 
+                    };
+                    
+                    const action = { type: 'ADD_SECTION', section: newSection };
+                    submitAction(action);
+                    hideModal();
+                } else {
+                    errorEl.textContent = 'Title is required.';
+                    document.getElementById('modal-section-title-input').focus();
+                }
+            });
+            
+            const swatches = modalContent.querySelectorAll('.color-swatch');
+            swatches.forEach(swatch => {
+                swatch.addEventListener('click', () => {
+                    swatches.forEach(s => s.classList.remove('selected'));
+                    swatch.classList.add('selected');
+                    selectedColor = swatch.dataset.color;
+                });
+            });
+        }
+        
+        function handleDeleteSectionClick(sectionId) {
+            showModal(
+                'Delete Section?',
+                `<p>Are you sure you want to delete this section? All cards in it will be permanently lost.</p>`,
+                () => {
+                    const action = { type: 'DELETE_SECTION', sectionId: sectionId };
+                    submitAction(action);
+                    hideModal();
+                }
+            );
+        }
+        
+        function handleDeleteCardClick(cardId) {
+            showModal(
+                'Delete Card?',
+                `<p>Are you sure you want to delete this card?</p>`,
+                () => {
+                    const action = { type: 'DELETE_CARD', cardId: cardId };
+                    submitAction(action);
+                    hideModal();
+                }
+            );
+        }
 
         // --- CARD DRAG-N-DROP LOGIC ---
         let draggedCardId = null;
         let placeholder = null;
 
         function handleDragStart(e) {
-            const cardEl = e.currentTarget.closest('.kanban-card');
+            // Check if dragging a section
+            if (e.target.closest('.kanban-section-header')) return;
+            
+            const cardEl = e.target.closest('.kanban-card');
+            if (!cardEl) return;
+            
+            const isStaging = !!e.target.closest('#staging-area, #mobile-staging-drawer');
+            const isStagingDragHandle = e.target.dataset.action === 'drag';
+            
+            if (isStaging && !isStagingDragHandle) {
+                e.preventDefault();
+                return;
+            }
+            
             draggedCardId = cardEl.dataset.cardId;
             setTimeout(() => cardEl.classList.add('dragging'), 0);
             
             placeholder = document.createElement('div');
             placeholder.className = 'drag-placeholder';
-            placeholder.style.height = `${cardEl.offsetHeight}px`;
             
-            const isStaging = cardEl.closest('#staging-area, #mobile-staging-drawer');
+            // Set placeholder size
             if (isStaging) {
                 placeholder.classList.add('staging-placeholder');
                 placeholder.style.width = `${cardEl.offsetWidth}px`;
+                placeholder.style.height = `${cardEl.offsetHeight}px`;
             } else {
                 placeholder.classList.add('section-placeholder');
+                placeholder.style.width = `100%`;
+                placeholder.style.height = `${cardEl.offsetHeight}px`;
             }
         }
         function handleDragEnd(e) {
+            if (!draggedCardId) return;
             const cardEl = document.querySelector(`[data-card-id="${draggedCardId}"]`);
             if (cardEl) cardEl.classList.remove('dragging');
             if (placeholder && placeholder.parentNode) {
@@ -859,20 +1023,96 @@
             placeholder = null;
             draggedCardId = null;
         }
-        function handleDragOver(e) { /* ... (no changes) ... */ }
-        function handleDragOverVertical(e, dropZone) { /* ... (no changes) ... */ }
-        function handleDragOverHorizontal(e, dropZone) { /* ... (no changes) ... */ }
-        function handleDrop(e) { /* ... (no changes) ... */ }
-        function getDragAfterElementVertical(container, y) { /* ... (no changes) ... */ }
-        function getDragAfterElementHorizontal(container, x) { /* ... (no changes) ... */ }
+        function handleDragOver(e) {
+            e.preventDefault();
+            const dropZone = e.target.closest('.card-list');
+            if (!dropZone || !placeholder) return;
+            
+            const isHorizontal = dropZone.id === 'staging-area' || dropZone.id === 'mobile-staging-drawer';
+            if (isHorizontal) {
+                handleDragOverHorizontal(e, dropZone);
+            } else {
+                handleDragOverVertical(e, dropZone);
+            }
+        }
+        function handleDragOverVertical(e, dropZone) {
+            const afterElement = getDragAfterElementVertical(dropZone, e.clientY);
+            if (afterElement == null) {
+                dropZone.appendChild(placeholder);
+            } else {
+                dropZone.insertBefore(placeholder, afterElement);
+            }
+        }
+        function handleDragOverHorizontal(e, dropZone) {
+            const afterElement = getDragAfterElementHorizontal(dropZone, e.clientX);
+            if (afterElement == null) {
+                dropZone.appendChild(placeholder);
+            } else {
+                dropZone.insertBefore(placeholder, afterElement);
+            }
+        }
+        function handleDrop(e) {
+            e.preventDefault();
+            if (!draggedCardId) return;
+            const dropZone = e.target.closest('.card-list');
+            if (!dropZone) return;
+            
+            const newSectionId = dropZone.dataset.sectionId; 
+
+            const children = Array.from(dropZone.children).filter(c => !c.classList.contains('dragging'));
+            let newIndex = children.indexOf(placeholder);
+            if (newIndex === -1) {
+                if(placeholder.parentNode === dropZone) {
+                   newIndex = Array.from(dropZone.children).indexOf(placeholder);
+                } else {
+                   newIndex = children.length;
+                }
+            }
+
+            const action = {
+                type: 'MOVE_CARD',
+                cardId: draggedCardId,
+                newSectionId: newSectionId,
+                newIndex: newIndex
+            };
+            submitAction(action);
+        }
+        function getDragAfterElementVertical(container, y) {
+            const draggableElements = [...container.querySelectorAll('.kanban-card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        function getDragAfterElementHorizontal(container, x) {
+            const draggableElements = [...container.querySelectorAll('.kanban-card:not(.dragging), .kanban-section:not(.dragging-section)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
         
-        // --- NEW: SECTION DRAG-N-DROP LOGIC ---
+        // --- SECTION DRAG-N-DROP LOGIC ---
         let draggedSectionId = null;
         let sectionPlaceholder = null;
         
         function handleSectionDragStart(e) {
-            // Only allow dragging by the header on desktop horizontal
-            if (state.desktopLayout !== 'horizontal' || !e.target.classList.contains('kanban-section-header')) {
+            const headerEl = e.target.closest('.kanban-section-header');
+            if (state.desktopLayout !== 'horizontal' || !headerEl) {
+                e.preventDefault();
+                return;
+            }
+            if (e.target.closest('.delete-section-btn')) {
                 e.preventDefault();
                 return;
             }
@@ -899,7 +1139,7 @@
 
         function handleSectionDragOver(e) {
             e.preventDefault();
-            if (!draggedSectionId || state.desktopLayout !== 'horizontal') return;
+            if (!draggedSectionId || state.desktopLayout !== 'horizontal' || !sectionPlaceholder) return;
             
             const afterElement = getDragAfterElementHorizontal(boardContainer, e.clientX);
             if (afterElement == null) {
@@ -916,8 +1156,15 @@
             const section = state.sections.find(s => s.id === draggedSectionId);
             if (!section) return;
 
-            const children = Array.from(boardContainer.children);
-            const newIndex = children.indexOf(sectionPlaceholder);
+            const children = Array.from(boardContainer.children).filter(c => !c.classList.contains('dragging-section') && !c.id.includes('add-section-btn'));
+            let newIndex = children.indexOf(sectionPlaceholder);
+            if (newIndex === -1) {
+                if(sectionPlaceholder.parentNode === boardContainer) {
+                   newIndex = Array.from(boardContainer.children).indexOf(sectionPlaceholder);
+                } else {
+                   newIndex = children.length;
+                }
+            }
 
             const action = { type: 'MOVE_SECTION', sectionId: draggedSectionId, newIndex: newIndex };
             submitAction(action);
@@ -937,50 +1184,78 @@
                 case 'DELETE_CARD':
                     state.cards = state.cards.filter(c => c.id !== action.cardId);
                     break;
-                // NEW: Update card
                 case 'UPDATE_CARD':
                     state.cards = state.cards.map(c => c.id === action.card.id ? action.card : c);
                     break;
                 case 'MOVE_CARD':
-                    // ... (no changes)
+                    const card = state.cards.find(c => c.id === action.cardId);
+                    if (!card) return;
+                    card.sectionId = action.newSectionId;
+                    let otherCards = state.cards
+                        .filter(c => c.sectionId === action.newSectionId && c.id !== action.cardId)
+                        .sort((a,b) => a.order - b.order);
+                    otherCards.splice(action.newIndex, 0, card);
+                    otherCards.forEach((c, index) => c.order = index);
                     break;
-                // NEW: Move section
                 case 'MOVE_SECTION':
                     const movedSection = state.sections.find(s => s.id === action.sectionId);
                     let otherSections = state.sections
                         .filter(s => s.id !== action.sectionId)
                         .sort((a,b) => a.order - b.order);
-                
                     otherSections.splice(action.newIndex, 0, movedSection);
                     otherSections.forEach((s, index) => s.order = index);
                     break;
+                case 'ANNOUNCE_USER':
+                    state.users[action.peerId] = action.userName;
+                    renderChat(); 
+                    return; 
                 case 'CHAT_MESSAGE':
-                    // ... (no changes)
-                    return; // Don't re-render whole board
+                    state.chat.push(action.message);
+                    renderChat();
+                    if (action.message.peerId !== myPeerId && !chatWindow.classList.contains('active')) {
+                        const userName = state.users[action.message.peerId] || 'A peer';
+                        showToast(`New Message from ${userName}`, action.message.text);
+                    }
+                    if (action.message.peerId !== myPeerId) {
+                        chatFab.classList.add('bouncing');
+                        setTimeout(() => chatFab.classList.remove('bouncing'), 1200);
+                    }
+                    return; 
             }
             saveAndRenderLocally();
         }
 
         function submitAction(action) {
-            if (isHost) {
+            if (isHost || !peer) { // If host OR offline
                 handleAction(action);
-                broadcast(action);
-            } else {
+                if (isHost) broadcast(action);
+            } else { // If client
                 broadcast(action);
             }
         }
 
         // --- IMPORT / EXPORT LOGIC ---
-        // ... (no changes) ...
+        saveBtn.onclick = handleSaveFile;
+        loadBtn.onclick = () => fileInput.click();
+        fileInput.onchange = handleLoadFile;
+
+        function handleSaveFile() { /* ... (no changes) ... */ }
+        function handleLoadFile(e) { /* ... (no changes) ... */ }
+        window.addEventListener('dragenter', (e) => { /* ... (no changes) ... */ });
+        dropZone.addEventListener('dragleave', (e) => { /* ... (no changes) ... */ });
+        dropZone.addEventListener('dragover', (e) => e.preventDefault());
+        dropZone.addEventListener('drop', (e) => { /* ... (no changes) ... */ });
+        function loadMimFile(file) { /* ... (no changes) ... */ }
         
         // --- PEERJS & CHAT LOGIC ---
-        function initHost(hostId) {
+        function initHost(hostId, userName) {
             if (peer) peer.destroy();
             isHost = true;
             peer = new Peer(hostId);
             
             peer.on('open', (id) => {
                 myPeerId = id;
+                state.users[myPeerId] = userName;
                 setConnectionStatus('Waiting for peers...');
                 console.log('PeerJS Host ID:', id);
                 
@@ -990,10 +1265,11 @@
                     <p class="text-center text-sm text-gray-500">Or manually enter ID:</p>
                     <input type="text" class="w-full bg-gray-100 text-center text-gray-700 p-2 rounded" value="${id}" readonly>
                 `;
+                hideModal(); 
                 showModal('Session Started', content, hideModal);
                 
-                // FIX: Use setTimeout to wait for modal's DOM
-                setTimeout(() => {
+                // FIX: Use requestAnimationFrame for QR code
+                requestAnimationFrame(() => {
                     const canvas = document.getElementById('qr-canvas');
                     if (canvas) {
                         QRCode.toCanvas(canvas, id, (error) => {
@@ -1002,52 +1278,211 @@
                     } else {
                         console.error("Could not find #qr-canvas element!");
                     }
-                }, 100);
+                });
             });
             
             peer.on('connection', (conn) => {
-                // ... (no changes to connection logic) ...
+                console.log('Peer connected:', conn.peer);
+                connections.push(conn);
+                setConnectionStatus(`Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})`);
+                chatFab.style.display = 'flex';
+                
+                conn.on('open', () => {
+                    conn.send({ type: 'FULL_STATE', payload: state });
+                });
+                
+                conn.on('data', (data) => {
+                    console.log('Host received data:', data);
+                    if (data.type === 'ANNOUNCE_USER') {
+                        state.users[data.peerId] = data.userName;
+                    }
+                    handleAction(data);
+                    broadcast(data); 
+                });
+                
+                conn.on('close', () => {
+                    connections = connections.filter(c => c.peer !== conn.peer);
+                    delete state.users[conn.peer];
+                    setConnectionStatus(connections.length > 0 ? `Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})` : 'Waiting for peers...');
+                });
             });
             
             peer.on('error', (err) => {
-                // ... (no changes to error logic) ...
+                console.error('PeerJS Host Error:', err);
+                if (err.type === 'unavailable-id') {
+                    setConnectionStatus('Offline');
+                     const savedName = localStorage.getItem('decomBoardUserName') || '';
+                     const defaultId = `decom-board-${Math.floor(1000 + Math.random() * 9000)}`;
+                     const content = `
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                                <input type="text" id="modal-user-name" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${savedName}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Session ID</label>
+                                <input type="text" id="custom-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${defaultId}">
+                            </div>
+                            <p id="peer-error" class="text-red-500 text-sm h-4 mt-2">Error: That ID is already taken. Try another.</p>
+                        </div>
+                    `;
+                    hideModal();
+                    showModal('Start a Session', content, () => {
+                        const newCustomId = document.getElementById('custom-peer-id').value;
+                        const userName = document.getElementById('modal-user-name').value;
+                        if (newCustomId && userName) {
+                             localStorage.setItem('decomBoardUserName', userName);
+                             initHost(newCustomId, userName);
+                        }
+                    });
+                }
             });
         }
         
-        function setConnectionStatus(status) { /* ... (no changes) ... */ }
+        function setConnectionStatus(status) {
+            connectionStatus.textContent = status;
+            mobileConnectionStatus.textContent = status;
+            if (status === 'Offline') {
+                connectionStatus.className = 'text-sm text-gray-500';
+                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-gray-500 z-50';
+            } else if (status.startsWith('Connected')) {
+                connectionStatus.className = 'text-sm text-green-600 font-medium';
+                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-green-600 font-medium z-50';
+            } else {
+                connectionStatus.className = 'text-sm text-yellow-600';
+                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-yellow-600 z-50';
+            }
+        }
         function startQRScanner() { /* ... (no changes) ... */ }
         
-        // MODIFIED: Host start flow
         startSessionBtn.onclick = () => {
+            const savedName = localStorage.getItem('decomBoardUserName') || '';
             const defaultId = `decom-board-${Math.floor(1000 + Math.random() * 9000)}`;
             const content = `
-                <p class="mb-4">Enter a custom session ID or use the generated one.</p>
-                <label class="font-medium">Session ID</label>
-                <input type="text" id="custom-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${defaultId}">
-                <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                        <input type="text" id="modal-user-name" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${savedName}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Session ID</label>
+                        <input type="text" id="custom-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${defaultId}">
+                    </div>
+                    <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
+                </div>
             `;
             
             showModal('Start a Session', content, () => {
                 const customId = document.getElementById('custom-peer-id').value;
+                const userName = document.getElementById('modal-user-name').value;
                 const errorEl = document.getElementById('peer-error');
+                
+                if (!userName) { errorEl.textContent = 'Your name is required.'; return; }
                 if (!customId) { errorEl.textContent = 'Session ID cannot be empty.'; return; }
                 if (/\s/.test(customId)) { errorEl.textContent = 'Session ID cannot contain spaces.'; return; }
                 
-                initHost(customId);
-                // MODIFIED: Do not hide modal here. initHost will show the QR modal.
+                localStorage.setItem('decomBoardUserName', userName);
+                initHost(customId, userName);
             });
         };
         
-        function joinSession() { /* ... (no changes) ... */ }
+        function joinSession() {
+            const savedName = localStorage.getItem('decomBoardUserName') || '';
+            const content = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                        <input type="text" id="modal-user-name" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${savedName}">
+                    </div>
+                    <p class="mb-4">Scan the QR code from the host's screen.</p>
+                    <div id="qr-reader"></div>
+                    <p class="text-center text-gray-500 my-2">OR</p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Enter Host ID</label>
+                        <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2">
+                    </div>
+                    <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
+                </div>
+            `;
+            showModal('Join Session', content, () => {
+                const manualId = document.getElementById('manual-peer-id').value;
+                const userName = document.getElementById('modal-user-name').value;
+                const errorEl = document.getElementById('peer-error');
+                
+                if (!userName) { errorEl.textContent = 'Your name is required.'; return; }
+                if (!manualId) { errorEl.textContent = 'Host ID is required.'; return; }
+                
+                localStorage.setItem('decomBoardUserName', userName);
+                connectToHost(manualId, userName);
+                hideModal();
+            });
+        }
         joinSessionBtnDesktop.onclick = joinSession;
         mobileJoinBtn.onclick = joinSession;
 
-        function connectToHost(hostId) { /* ... (no changes) ... */ }
-        function broadcast(data) { /* ... (no changes) ... */ }
+        function connectToHost(hostId, userName) {
+            if (peer) peer.destroy();
+            peer = new Peer();
+            isHost = false;
+            
+            peer.on('open', (id) => {
+                myPeerId = id;
+                console.log('Client Peer ID:', id, 'connecting to', hostId);
+                setConnectionStatus('Connecting...');
+                
+                const conn = peer.connect(hostId);
+                connections = [conn];
+                
+                conn.on('open', () => {
+                    console.log('Connected to host!');
+                    setConnectionStatus('Connected (Client)');
+                    chatFab.style.display = 'flex';
+                    broadcast({ type: 'ANNOUNCE_USER', peerId: myPeerId, userName: userName });
+                });
+                
+                conn.on('data', (data) => {
+                    console.log('Client received data:', data);
+                    if (data.type === 'FULL_STATE') {
+                        state = data.payload;
+                        saveAndRenderLocally();
+                    } else {
+                        handleAction(data);
+                    }
+                });
+                
+                conn.on('close', () => {
+                    setConnectionStatus('Offline (Disconnected)');
+                    chatFab.style.display = 'none';
+                    connections = [];
+                });
+            });
+            
+            peer.on('error', (err) => console.error('PeerJS Client Error:', err));
+        }
+        
+        function broadcast(data) {
+            connections.forEach(conn => {
+                if (conn && conn.open) {
+                    conn.send(data);
+                }
+            });
+        }
         
         // Chat UI Logic
-        chatFab.onclick = () => { /* ... (no changes) ... */ };
-        function sendChat() { /* ... (no changes) ... */ }
+        chatFab.onclick = () => {
+            chatWindow.classList.toggle('active');
+            chatFab.classList.remove('bouncing');
+        };
+        function sendChat() {
+            const text = chatInput.value;
+            if (text.trim() === '') return;
+            
+            const message = { peerId: myPeerId, text: text };
+            const action = { type: 'CHAT_MESSAGE', message: message };
+            
+            submitAction(action);
+            chatInput.value = '';
+        }
         chatSendBtn.onclick = sendChat;
         chatInput.onkeydown = (e) => { if (e.key === 'Enter') sendChat(); };
 
