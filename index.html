@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decom Board</title>
+    <title>mimSense</title>
     <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -181,6 +181,15 @@
         
         /* QR Code Scanner */
         #qr-reader { width: 100%; border: 2px dashed #4f46e5; border-radius: 8px; }
+        /* FIX: New QR Code display div */
+        #qr-code-display {
+            width: 192px; /* 48 * 4 */
+            height: 192px; /* 48 * 4 */
+            margin: 1rem auto;
+        }
+        #qr-code-display img {
+            margin: 0 auto;
+        }
 
         /* Quill Editor Styles */
         #quill-editor {
@@ -246,6 +255,17 @@
             display: block;
             font-weight: 600;
             margin-bottom: 0.25rem;
+        }
+        
+        /* FIX: Card Drag/Edit Zones */
+        .card-drag-handle {
+            cursor: grab;
+        }
+        .card-drag-handle:active {
+            cursor: grabbing;
+        }
+        .card-edit-area {
+            cursor: pointer;
         }
 
     </style>
@@ -357,16 +377,17 @@
     <!-- NEW: Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-20 flex flex-col gap-2 max-w-xs"></div>
 
-    <!-- NEW LOCATION FOR JS LIBS -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <!-- FIX: Added 'defer' to all library scripts -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" defer></script>
+    <!-- FIX: Swapped to the reliable qrcode.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js" defer></script>
 
     <!-- MAIN JAVASCRIPT LOGIC -->
     <script>
-        // FIX: Wrap all code in window.onload listener
-        window.addEventListener('load', (event) => {
+        // FIX: Wrap all code in DOMContentLoaded listener
+        window.addEventListener('DOMContentLoaded', (event) => {
     
             // --- STATE MANAGEMENT ---
             const boardContainer = document.getElementById('board-container');
@@ -601,44 +622,48 @@
                 return addSectionBtnEl;
             }
 
+            // FIX: Re-designed card for separate drag/edit zones
             function createCardElement(card) {
                 const cardEl = document.createElement('div');
                 const isStaging = card.sectionId === 'staging';
                 const cardWidthClass = isStaging ? 'w-64' : 'w-full';
 
-                cardEl.className = `kanban-card p-4 bg-kanban-card text-gray-900 rounded-md shadow hover:shadow-lg transition-all ${cardWidthClass} flex-shrink-0 relative`;
+                cardEl.className = `kanban-card bg-kanban-card text-gray-900 rounded-md shadow hover:shadow-lg transition-all ${cardWidthClass} flex-shrink-0 relative flex flex-col`;
                 cardEl.dataset.cardId = card.id;
                 
                 const hasNotes = card.notes && card.notes.trim() !== '' && card.notes.trim() !== '<p><br></p>';
                 const hasImages = card.notes && card.notes.includes('<img');
-
-                cardEl.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
+                
+                // --- Card Top (Drag Handle) ---
+                const dragHandle = document.createElement('div');
+                dragHandle.className = 'card-drag-handle p-4 pt-3 pb-2 cursor-grab active:cursor-grabbing';
+                dragHandle.draggable = true; // The handle is ALWAYS draggable
+                
+                dragHandle.innerHTML = `
+                    <div class="flex justify-between items-start">
                         <p class="font-medium text-gray-800 break-all">${card.title}</p>
                         <button class="delete-card-btn text-gray-400 hover:text-red-500 z-20" data-card-id="${card.id}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
-                    
-                    <div class="flex justify-between items-end mt-4">
+                `;
+                
+                // --- Card Bottom (Edit Area) ---
+                const editArea = document.createElement('div');
+                editArea.className = 'card-edit-area p-4 pt-2 cursor-pointer';
+                editArea.innerHTML = `
+                    <div class="flex justify-between items-end mt-2">
                         <div class="flex space-x-2">
                             ${hasNotes ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>` : ''}
                             ${hasImages ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 14m6-6l.01.01" /></svg>` : ''}
                         </div>
                         <div class="h-8 w-8 bg-gray-300 rounded-full flex-shrink-0"></div>
                     </div>
-                    
-                    <div class="absolute inset-0 cursor-pointer z-10" data-action="edit"></div>
-                    
-                    ${isStaging ? 
-                        `<div class="absolute inset-0 cursor-grab z-0" data-action="drag" draggable="true"></div>` : 
-                        ''}
                 `;
-                
-                if (!isStaging) {
-                    cardEl.draggable = true;
-                }
 
+                cardEl.appendChild(dragHandle);
+                cardEl.appendChild(editArea);
+                
                 return cardEl;
             }
             
@@ -672,11 +697,12 @@
                 mainApp.removeEventListener('click', handleAppClick); 
                 mainApp.addEventListener('click', handleAppClick);
 
-                // Drag Listeners (CARDS)
-                mainApp.removeEventListener('dragstart', handleDragStart); 
-                mainApp.addEventListener('dragstart', handleDragStart);
-                mainApp.removeEventListener('dragend', handleDragEnd);
-                mainApp.addEventListener('dragend', handleDragEnd);
+                // FIX: Consolidated dragstart handler
+                mainApp.removeEventListener('dragstart', onDragStart); 
+                mainApp.addEventListener('dragstart', onDragStart);
+
+                mainApp.removeEventListener('dragend', onDragEnd);
+                mainApp.addEventListener('dragend', onDragEnd);
                 
                 const dropZones = document.querySelectorAll('.card-list');
                 dropZones.forEach(zone => {
@@ -685,12 +711,6 @@
                     zone.removeEventListener('drop', handleDrop);
                     zone.addEventListener('drop', handleDrop);
                 });
-
-                // Drag Listeners (SECTIONS)
-                mainApp.removeEventListener('dragstart', handleSectionDragStart);
-                mainApp.addEventListener('dragstart', handleSectionDragStart);
-                mainApp.removeEventListener('dragend', handleSectionDragEnd);
-                mainApp.addEventListener('dragend', handleSectionDragEnd);
                 
                 boardContainer.removeEventListener('dragover', handleSectionDragOver);
                 boardContainer.addEventListener('dragover', handleSectionDragOver);
@@ -713,6 +733,7 @@
                 };
             }
             
+            // FIX: Updated click handler for new card structure
             function handleAppClick(e) {
                 const deleteCardBtn = e.target.closest('.delete-card-btn');
                 if (deleteCardBtn) {
@@ -728,10 +749,11 @@
                     return;
                 }
                 
-                const editCardTarget = e.target.closest('[data-action="edit"]');
-                if (editCardTarget) {
+                // FIX: Check for the new edit area
+                const editCardArea = e.target.closest('.card-edit-area');
+                if (editCardArea) {
                     e.stopPropagation();
-                    const cardId = editCardTarget.closest('.kanban-card').dataset.cardId;
+                    const cardId = editCardArea.closest('.kanban-card').dataset.cardId;
                     handleEditCardClick(cardId);
                     return;
                 }
@@ -981,34 +1003,52 @@
                 );
             }
 
-            // --- CARD DRAG-N-DROP LOGIC ---
+            // --- DRAG-N-DROP LOGIC ---
             let draggedCardId = null;
             let placeholder = null;
+            let draggedSectionId = null;
+            let sectionPlaceholder = null;
+            
+            // FIX: Consolidated drag start
+            function onDragStart(e) {
+                const sectionHeader = e.target.closest('.kanban-section-header');
+                const cardDragHandle = e.target.closest('.card-drag-handle');
 
-            function handleDragStart(e) {
-                // Check if dragging a section
-                if (e.target.closest('.kanban-section-header')) return;
-                
+                if (sectionHeader && state.desktopLayout === 'horizontal') {
+                    // It's a section drag
+                    handleSectionDragStart(e);
+                } else if (cardDragHandle) {
+                    // It's a card drag
+                    handleCardDragStart(e);
+                } else {
+                    // Not dragging something we care about
+                    e.preventDefault();
+                }
+            }
+            
+            // FIX: Consolidated drag end
+            function onDragEnd(e) {
+                if (draggedCardId) {
+                    handleCardDragEnd(e);
+                }
+                if (draggedSectionId) {
+                    handleSectionDragEnd(e);
+                }
+            }
+
+            // FIX: Renamed and simplified
+            function handleCardDragStart(e) {
                 const cardEl = e.target.closest('.kanban-card');
                 if (!cardEl) return;
-                
-                const isStaging = !!e.target.closest('#staging-area, #mobile-staging-drawer');
-                const isStagingDragHandle = e.target.dataset.action === 'drag';
-                
-                if (isStaging && !isStagingDragHandle) {
-                    e.preventDefault();
-                    return;
-                }
                 
                 draggedCardId = cardEl.dataset.cardId;
                 setTimeout(() => cardEl.classList.add('dragging'), 0);
                 
                 placeholder = document.createElement('div');
                 placeholder.className = 'drag-placeholder';
-                
-                // Placeholder style is now set in handleDragOver
             }
-            function handleDragEnd(e) {
+            
+            function handleCardDragEnd(e) {
                 if (!draggedCardId) return;
                 const cardEl = document.querySelector(`[data-card-id="${draggedCardId}"]`);
                 if (cardEl) cardEl.classList.remove('dragging');
@@ -1018,8 +1058,10 @@
                 placeholder = null;
                 draggedCardId = null;
             }
+            
             function handleDragOver(e) {
                 e.preventDefault();
+                // This function now ONLY handles card dragging
                 const dropZone = e.target.closest('.card-list');
                 if (!dropZone || !placeholder) return;
                 
@@ -1065,7 +1107,7 @@
             }
             function handleDrop(e) {
                 e.preventDefault();
-                if (!draggedCardId) return;
+                if (!draggedCardId) return; // Only handle card drops
                 const dropZone = e.target.closest('.card-list');
                 if (!dropZone) return;
                 
@@ -1115,15 +1157,7 @@
             }
             
             // --- SECTION DRAG-N-DROP LOGIC ---
-            let draggedSectionId = null;
-            let sectionPlaceholder = null;
-            
             function handleSectionDragStart(e) {
-                const headerEl = e.target.closest('.kanban-section-header');
-                if (state.desktopLayout !== 'horizontal' || !headerEl) {
-                    e.preventDefault();
-                    return;
-                }
                 if (e.target.closest('.delete-section-btn')) {
                     e.preventDefault();
                     return;
@@ -1155,11 +1189,15 @@
 
             function handleSectionDragOver(e) {
                 e.preventDefault();
+                // This function ONLY handles section dragging
                 if (!draggedSectionId || state.desktopLayout !== 'horizontal' || !sectionPlaceholder) return;
                 
                 const afterElement = getDragAfterElementHorizontal(boardContainer, e.clientX);
                 if (afterElement == null) {
-                    boardContainer.appendChild(sectionPlaceholder);
+                    // Don't append if it's over the add button
+                    if (!e.target.closest('#add-section-btn')) {
+                        boardContainer.appendChild(sectionPlaceholder);
+                    }
                 } else {
                     boardContainer.insertBefore(sectionPlaceholder, afterElement);
                 }
@@ -1167,7 +1205,7 @@
             
             function handleSectionDrop(e) {
                 e.preventDefault();
-                if (!draggedSectionId || state.desktopLayout !== 'horizontal') return;
+                if (!draggedSectionId) return; // Only handle section drops
                 
                 const section = state.sections.find(s => s.id === draggedSectionId);
                 if (!section) return;
@@ -1334,7 +1372,8 @@
                     
                     const content = `
                         <p class="text-center">Scan this QR code with your mobile device to join.</p>
-                        <canvas id="qr-canvas" class="mx-auto my-4"></canvas>
+                        <!-- FIX: Use a div for the new QR library -->
+                        <div id="qr-code-display" class="mx-auto my-4 w-48 h-48"></div>
                         <p class="text-center text-sm text-gray-500">Or manually enter ID:</p>
                         <input type="text" class="w-full bg-gray-100 text-center text-gray-700 p-2 rounded" value="${id}" readonly>
                     `;
@@ -1344,13 +1383,19 @@
                     // FIX: Use double requestAnimationFrame for QR code
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
-                            const canvas = document.getElementById('qr-canvas');
-                            if (canvas) {
-                                QRCode.toCanvas(canvas, id, (error) => {
-                                    if (error) console.error("QR Code Generation Error:", error);
+                            const qrCodeEl = document.getElementById('qr-code-display');
+                            if (qrCodeEl) {
+                                // FIX: Use the new QRCode.js API
+                                new QRCode(qrCodeEl, {
+                                    text: id,
+                                    width: 192,
+                                    height: 192,
+                                    colorDark : "#000000",
+                                    colorLight : "#ffffff",
+                                    correctLevel : QRCode.CorrectLevel.H
                                 });
                             } else {
-                                console.error("Could not find #qr-canvas element!");
+                                console.error("Could not find #qr-code-display element!");
                             }
                         });
                     });
@@ -1387,7 +1432,8 @@
                     if (err.type === 'unavailable-id') {
                         setConnectionStatus('Offline');
                          const savedName = localStorage.getItem('decomBoardUserName') || '';
-                         const defaultId = `decom-board-${Math.floor(1000 + Math.random() * 9000)}`;
+                         // FIX: Rename default ID
+                         const defaultId = `mimsense-${Math.floor(1000 + Math.random() * 9000)}`;
                          const content = `
                             <div class="space-y-4">
                                 <div>
@@ -1461,7 +1507,8 @@
             
             startSessionBtn.onclick = () => {
                 const savedName = localStorage.getItem('decomBoardUserName') || '';
-                const defaultId = `decom-board-${Math.floor(1000 + Math.random() * 9000)}`;
+                // FIX: Rename default ID
+                const defaultId = `mimsense-${Math.floor(1000 + Math.random() * 9000)}`;
                 const content = `
                     <div class="space-y-4">
                         <div>
