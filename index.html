@@ -1145,25 +1145,11 @@
         
         // --- ADDED: PEERJS & CHAT LOGIC ---
         
-        function setConnectionStatus(status) {
-            connectionStatus.textContent = status;
-            mobileConnectionStatus.textContent = status;
-            if (status === 'Offline') {
-                connectionStatus.className = 'text-sm text-gray-500';
-                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-gray-500 z-50';
-            } else if (status.startsWith('Connected')) {
-                connectionStatus.className = 'text-sm text-green-600 font-medium';
-                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-green-600 font-medium z-50';
-            } else {
-                connectionStatus.className = 'text-sm text-yellow-600';
-                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-yellow-600 z-50';
-            }
-        }
-        
-        // Host starts a session
-        startSessionBtn.onclick = () => {
+        // NEW function to initialize the host
+        function initHost(hostId) {
+            if (peer) peer.destroy(); // Clean up any old peer
             isHost = true;
-            peer = new Peer(`decom-board-host-${Date.now()}`); // Unique ID
+            peer = new Peer(hostId); // Use the custom ID
             
             peer.on('open', (id) => {
                 myPeerId = id;
@@ -1179,10 +1165,17 @@
                 `;
                 showModal('Session Started', content, hideModal);
                 
-                const canvas = document.getElementById('qr-canvas');
-                QRCode.toCanvas(canvas, id, (error) => {
-                    if (error) console.error(error);
-                });
+                // FIX 1: Use setTimeout to wait for modal's DOM to update
+                setTimeout(() => {
+                    const canvas = document.getElementById('qr-canvas');
+                    if (canvas) {
+                        QRCode.toCanvas(canvas, id, (error) => {
+                            if (error) console.error("QR Code Generation Error:", error);
+                        });
+                    } else {
+                        console.error("Could not find #qr-canvas element!");
+                    }
+                }, 100); // 100ms delay to ensure DOM is ready
             });
             
             peer.on('connection', (conn) => {
@@ -1209,32 +1202,45 @@
                 });
             });
             
-            peer.on('error', (err) => console.error('PeerJS Host Error:', err));
-        };
-        
-        // Client joins a session (generic function)
-        function joinSession() {
-            const content = `
-                <p class="mb-4">Scan the QR code from the host's screen.</p>
-                <div id="qr-reader"></div>
-                <p class="text-center text-gray-500 my-2">OR</p>
-                <label class="font-medium">Enter Host ID</label>
-                <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2">
-            `;
-            showModal('Join Session', content, () => {
-                // Confirm button logic (for manual entry)
-                const manualId = document.getElementById('manual-peer-id').value;
-                if (manualId) {
-                    connectToHost(manualId);
-                    hideModal();
-                } else {
-                    alert('Please scan a code or enter an ID.');
+            peer.on('error', (err) => {
+                console.error('PeerJS Host Error:', err);
+                // NEW: Show error if ID is taken
+                if (err.type === 'unavailable-id') {
+                    setConnectionStatus('Offline');
+                    // Show the modal again with an error
+                     const defaultId = `decom-board-${Math.floor(1000 + Math.random() * 9000)}`;
+                     const content = `
+                        <p class="mb-4">Enter a custom session ID or use the generated one.</p>
+                        <label class="font-medium">Session ID</label>
+                        <input type="text" id="custom-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${defaultId}">
+                        <p id="peer-error" class="text-red-500 text-sm h-4 mt-2">Error: That ID is already taken. Try another.</p>
+                    `;
+                    showModal('Start a Session', content, () => {
+                        const newCustomId = document.getElementById('custom-peer-id').value;
+                        if (newCustomId) {
+                            initHost(newCustomId);
+                            hideModal();
+                        }
+                    });
                 }
             });
         }
         
-        joinSessionBtnDesktop.onclick = joinSession;
-        mobileJoinBtn.onclick = joinSession;
+        // MODIFIED: Restored this function's body
+        function setConnectionStatus(status) {
+            connectionStatus.textContent = status;
+            mobileConnectionStatus.textContent = status;
+            if (status === 'Offline') {
+                connectionStatus.className = 'text-sm text-gray-500';
+                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-gray-500 z-50';
+            } else if (status.startsWith('Connected')) {
+                connectionStatus.className = 'text-sm text-green-600 font-medium';
+                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-green-600 font-medium z-50';
+            } else {
+                connectionStatus.className = 'text-sm text-yellow-600';
+                mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-yellow-600 z-50';
+            }
+        }
         
         function startQRScanner() {
             html5QrCode = new Html5Qrcode("qr-reader");
@@ -1255,6 +1261,68 @@
             });
         }
         
+        // Host starts a session
+        startSessionBtn.onclick = () => {
+            // NEW: Show a modal to GET the custom ID first.
+            const defaultId = `decom-board-${Math.floor(1000 + Math.random() * 9000)}`;
+            const content = `
+                <p class="mb-4">Enter a custom session ID or use the generated one.</p>
+                <label class="font-medium">Session ID</label>
+                <input type="text" id="custom-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${defaultId}">
+                <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
+            `;
+            
+            showModal('Start a Session', content, () => {
+                // This is the 'confirm' callback
+                const customId = document.getElementById('custom-peer-id').value;
+                const errorEl = document.getElementById('peer-error');
+                
+                if (!customId) {
+                    errorEl.textContent = 'Session ID cannot be empty.';
+                    return; // Don't close modal, keep it open
+                }
+                
+                // Check for spaces or invalid chars
+                if (/\s/.test(customId)) {
+                     errorEl.textContent = 'Session ID cannot contain spaces.';
+                     return;
+                }
+                
+                // NOW we init the peer
+                initHost(customId);
+                hideModal();
+            });
+        };
+        
+        // MODIFIED: Restored this function's body
+        // Client joins a session (generic function)
+        function joinSession() {
+            const content = `
+                <p class="mb-4">Scan the QR code from the host's screen.</p>
+                <div id="qr-reader"></div>
+                <p class="text-center text-gray-500 my-2">OR</p>
+                <label class="font-medium">Enter Host ID</label>
+                <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2">
+                <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
+            `;
+            showModal('Join Session', content, () => {
+                // Confirm button logic (for manual entry)
+                const manualId = document.getElementById('manual-peer-id').value;
+                const errorEl = document.getElementById('peer-error');
+                if (manualId) {
+                    connectToHost(manualId);
+                    hideModal();
+                } else {
+                    errorEl.textContent = 'Please scan a code or enter an ID.';
+                    // Don't close modal
+                }
+            });
+        }
+        
+        joinSessionBtnDesktop.onclick = joinSession;
+        mobileJoinBtn.onclick = joinSession;
+
+        // MODIFIED: Re-inserted this entire function
         // Client connects to host
         function connectToHost(hostId) {
             if (peer) peer.destroy(); // Ensure old peer is gone
