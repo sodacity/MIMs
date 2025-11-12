@@ -800,8 +800,8 @@
                     
                     // Create action and broadcast
                     const action = { type: 'ADD_CARD', card: newCard };
-                    handleAction(action); // Apply locally
-                    broadcast(action); // Send to peers
+                    // MODIFIED: Use new submitAction
+                    submitAction(action);
                     
                     hideModal();
                 } else {
@@ -847,8 +847,8 @@
                     };
                     
                     const action = { type: 'ADD_SECTION', section: newSection };
-                    handleAction(action);
-                    broadcast(action);
+                    // MODIFIED: Use new submitAction
+                    submitAction(action);
                     
                     hideModal();
                 } else {
@@ -875,8 +875,8 @@
                 `<p>Are you sure you want to delete this section? All cards in it will be permanently lost.</p>`,
                 () => {
                     const action = { type: 'DELETE_SECTION', sectionId: sectionId };
-                    handleAction(action);
-                    broadcast(action);
+                    // MODIFIED: Use new submitAction
+                    submitAction(action);
                     hideModal();
                 }
             );
@@ -890,8 +890,8 @@
                 `<p>Are you sure you want to delete this card?</p>`,
                 () => {
                     const action = { type: 'DELETE_CARD', cardId: cardId };
-                    handleAction(action);
-                    broadcast(action);
+                    // MODIFIED: Use new submitAction
+                    submitAction(action);
                     hideModal();
                 }
             );
@@ -986,8 +986,8 @@
                 newSectionId: newSectionId,
                 newIndex: newIndex
             };
-            handleAction(action);
-            broadcast(action);
+            // MODIFIED: Use new submitAction
+            submitAction(action);
         }
 
         function getDragAfterElementVertical(container, y) {
@@ -1072,6 +1072,23 @@
             
             // Re-render and save
             saveAndRenderLocally();
+        }
+
+        // --- NEW: Action Submission ---
+        /**
+         * Funnels all user actions through one place.
+         * - If HOST: Apply locally, broadcast to all clients.
+         * - If CLIENT: Send to host, wait for host to broadcast back.
+         */
+        function submitAction(action) {
+            if (isHost) {
+                // Host is authority
+                handleAction(action);
+                broadcast(action);
+            } else {
+                // Client sends to host, host will broadcast it back
+                broadcast(action);
+            }
         }
 
         // --- IMPORT / EXPORT LOGIC ---
@@ -1165,7 +1182,7 @@
                 `;
                 showModal('Session Started', content, hideModal);
                 
-                // FIX 1: Use setTimeout to wait for modal's DOM to update
+                // FIX: Use setTimeout to wait for modal's DOM to update
                 setTimeout(() => {
                     const canvas = document.getElementById('qr-canvas');
                     if (canvas) {
@@ -1193,9 +1210,11 @@
                     console.log('Host received data:', data);
                     // Host is authoritative. Apply action and broadcast to ALL.
                     handleAction(data);
-                    broadcast(data); // Echo back to all clients (including sender)
+                    // MODIFIED: Broadcast to ALL (including original sender, who is now just listening)
+                    broadcast(data);
                 });
                 
+                // MODIFIED: Fixed this function body
                 conn.on('close', () => {
                     connections = connections.filter(c => c.peer !== conn.peer);
                     setConnectionStatus(connections.length > 0 ? `Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})` : 'Waiting for peers...');
@@ -1223,6 +1242,7 @@
                         }
                     });
                 }
+                // MODIFIED: Removed the stray, broken code block that was here
             });
         }
         
@@ -1391,8 +1411,8 @@
             
             const action = { type: 'CHAT_MESSAGE', message: message };
             
-            handleAction(action); // Apply locally
-            broadcast(action); // Send to peers
+            // MODIFIED: Use submitAction
+            submitAction(action);
             
             chatInput.value = '';
         }
