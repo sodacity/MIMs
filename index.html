@@ -6,14 +6,9 @@
     <title>Decom Board</title>
     <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 2. PeerJS for real-time sync -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <!-- 3. QR Code Generator -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <!-- 4. QR Code Scanner -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <!-- 5. Quill Rich Text Editor (JS) -->
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    
+    <!-- JS scripts moved to end of body for correct load order -->
+    
     <!-- 6. Quill Rich Text Editor (CSS) -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
     
@@ -265,7 +260,7 @@
         </main>
         
         <!-- STAGING AREA FOOTER -->
-        <footer class="flex-shrink-0 bg-kanban-footer border-t border-gray-200 shadow-inner">
+        <footer class="flex-shrink: 0; bg-kanban-footer border-t border-gray-200 shadow-inner">
             <div class="flex justify-between items-center px-6 pt-4">
                 <div class="flex items-center space-x-4">
                     <h2 class="text-lg font-semibold text-gray-700">Staging Area</h2>
@@ -360,7 +355,13 @@
     </div>
     
     <!-- NEW: Toast Notification Container -->
-    <div id="toast-container"></div>
+    <div id="toast-container" class="fixed top-4 right-4 z-20 flex flex-col gap-2 max-w-xs"></div>
+
+    <!-- NEW LOCATION FOR JS LIBS -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 
     <!-- MAIN JAVASCRIPT LOGIC -->
     <script>
@@ -1002,16 +1003,7 @@
             placeholder = document.createElement('div');
             placeholder.className = 'drag-placeholder';
             
-            // Set placeholder size
-            if (isStaging) {
-                placeholder.classList.add('staging-placeholder');
-                placeholder.style.width = `${cardEl.offsetWidth}px`;
-                placeholder.style.height = `${cardEl.offsetHeight}px`;
-            } else {
-                placeholder.classList.add('section-placeholder');
-                placeholder.style.width = `100%`;
-                placeholder.style.height = `${cardEl.offsetHeight}px`;
-            }
+            // Placeholder style is now set in handleDragOver
         }
         function handleDragEnd(e) {
             if (!draggedCardId) return;
@@ -1029,6 +1021,23 @@
             if (!dropZone || !placeholder) return;
             
             const isHorizontal = dropZone.id === 'staging-area' || dropZone.id === 'mobile-staging-drawer';
+            
+            // FIX: Adjust placeholder style based on the drop zone
+            const draggingCard = document.querySelector(`[data-card-id="${draggedCardId}"]`);
+            if (!draggingCard) return;
+
+            if (isHorizontal) {
+                placeholder.classList.add('staging-placeholder');
+                placeholder.classList.remove('section-placeholder');
+                placeholder.style.width = `${draggingCard.offsetWidth}px`;
+                placeholder.style.height = `${draggingCard.offsetHeight}px`;
+            } else {
+                placeholder.classList.add('section-placeholder');
+                placeholder.classList.remove('staging-placeholder');
+                placeholder.style.width = '100%';
+                placeholder.style.height = `${draggingCard.offsetHeight}px`;
+            }
+            
             if (isHorizontal) {
                 handleDragOverHorizontal(e, dropZone);
             } else {
@@ -1117,7 +1126,11 @@
                 return;
             }
             
-            const sectionEl = e.currentTarget.closest('.kanban-section');
+            const sectionEl = e.target.closest('.kanban-section');
+            if (!sectionEl) {
+                e.preventDefault();
+                return;
+            }
             draggedSectionId = sectionEl.dataset.sectionId;
             setTimeout(() => sectionEl.classList.add('dragging-section'), 0);
             
@@ -1239,13 +1252,70 @@
         loadBtn.onclick = () => fileInput.click();
         fileInput.onchange = handleLoadFile;
 
-        function handleSaveFile() { /* ... (no changes) ... */ }
-        function handleLoadFile(e) { /* ... (no changes) ... */ }
-        window.addEventListener('dragenter', (e) => { /* ... (no changes) ... */ });
-        dropZone.addEventListener('dragleave', (e) => { /* ... (no changes) ... */ });
+        function handleSaveFile() {
+            const data = JSON.stringify(state, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `decom_board_${new Date().toISOString().split('T')[0]}.mim`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function handleLoadFile(e) {
+            const file = e.target.files[0];
+            if (file) loadMimFile(file);
+            e.target.value = null;
+        }
+        
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.items && e.dataTransfer.items.length > 0 && e.dataTransfer.items[0].kind === 'file') {
+                dropZone.classList.add('active');
+            }
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            if (e.relatedTarget === null || !dropZone.contains(e.relatedTarget)) {
+                dropZone.classList.remove('active');
+            }
+        });
         dropZone.addEventListener('dragover', (e) => e.preventDefault());
-        dropZone.addEventListener('drop', (e) => { /* ... (no changes) ... */ });
-        function loadMimFile(file) { /* ... (no changes) ... */ }
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.name.endsWith('.mim')) loadMimFile(file);
+                else alert('Not a .mim file!');
+            }
+        });
+        
+        function loadMimFile(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const newState = JSON.parse(event.target.result);
+                    if (newState && newState.sections && newState.cards) {
+                        state = newState;
+                        if (!state.chat) state.chat = [];
+                        if (!state.users) state.users = {};
+                        if (!state.desktopLayout) state.desktopLayout = 'horizontal';
+                        saveAndRenderLocally();
+                        
+                        if (isHost) {
+                            broadcast({ type: 'FULL_STATE', payload: state });
+                        }
+                    } else throw new Error('Invalid file format');
+                } catch (err) {
+                    console.error('Error loading .mim file:', err);
+                    alert('Could not load .mim file.');
+                }
+            };
+            reader.readAsText(file);
+        }
         
         // --- PEERJS & CHAT LOGIC ---
         function initHost(hostId, userName) {
@@ -1268,16 +1338,18 @@
                 hideModal(); 
                 showModal('Session Started', content, hideModal);
                 
-                // FIX: Use requestAnimationFrame for QR code
+                // FIX: Use double requestAnimationFrame for QR code
                 requestAnimationFrame(() => {
-                    const canvas = document.getElementById('qr-canvas');
-                    if (canvas) {
-                        QRCode.toCanvas(canvas, id, (error) => {
-                            if (error) console.error("QR Code Generation Error:", error);
-                        });
-                    } else {
-                        console.error("Could not find #qr-canvas element!");
-                    }
+                    requestAnimationFrame(() => {
+                        const canvas = document.getElementById('qr-canvas');
+                        if (canvas) {
+                            QRCode.toCanvas(canvas, id, (error) => {
+                                if (error) console.error("QR Code Generation Error:", error);
+                            });
+                        } else {
+                            console.error("Could not find #qr-canvas element!");
+                        }
+                    });
                 });
             });
             
@@ -1353,7 +1425,36 @@
                 mobileConnectionStatus.className = 'absolute top-5 left-4 text-sm text-yellow-600 z-50';
             }
         }
-        function startQRScanner() { /* ... (no changes) ... */ }
+        function startQRScanner() {
+            html5QrCode = new Html5Qrcode("qr-reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            html5QrCode.start({ facingMode: "environment" }, config, 
+                (decodedText, decodedResult) => {
+                    // Success
+                    console.log(`QR Scanned: ${decodedText}`);
+                    html5QrCode.stop();
+                    // Now find the other inputs in the modal
+                    const userName = document.getElementById('modal-user-name').value;
+                    const errorEl = document.getElementById('peer-error');
+                    
+                    if (!userName) {
+                        errorEl.textContent = 'Your name is required.';
+                        // Don't close modal, let user enter name
+                        html5QrCode.start({ facingMode: "environment" }, config, ()=>{}, ()=>{}); // Restart
+                        return;
+                    }
+                    
+                    localStorage.setItem('decomBoardUserName', userName);
+                    connectToHost(decodedText, userName);
+                    hideModal();
+                },
+                (errorMessage) => { /* console.log(errorMessage); */ } 
+            ).catch((err) => {
+                console.error("Cannot start QR scanner:", err);
+                modalContent.innerHTML += `<p class="text-red-500">Could not start camera. Check permissions.</p>`;
+            });
+        }
         
         startSessionBtn.onclick = () => {
             const savedName = localStorage.getItem('decomBoardUserName') || '';
