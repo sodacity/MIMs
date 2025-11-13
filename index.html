@@ -87,7 +87,6 @@
             margin: 0.5rem 0;
             height: 4rem; /* Give placeholder a small height */
         }
-        /* FIX: Renamed staging-placeholder */
         .deck-placeholder {
             margin: 0 0.5rem;
             width: 4rem; /* Give placeholder a small width */
@@ -127,9 +126,8 @@
         #modal-container {
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%); z-index: 1001;
-            display: none; width: 90%; max-width: 500px;
+            width: 90%; max-width: 500px;
             background-color: #ffffff; color: #111827;
-            /* FIX: Add flex layout and max height */
             display: flex;
             flex-direction: column;
             max-height: 85dvh;
@@ -142,7 +140,6 @@
         }
         #modal-container.active,
         #modal-backdrop.active { 
-            display: flex; /* Use flex for layout */
             visibility: visible;
             opacity: 1;
         }
@@ -151,6 +148,8 @@
         }
 
         #modal-title-text {
+            padding: 1.5rem;
+            padding-bottom: 0;
             flex-shrink: 0; /* Prevent header from shrinking */
         }
         #modal-content {
@@ -210,12 +209,10 @@
                 flex: 0 0 100%; scroll-snap-align: center; height: 100%;
                 margin: 0; border-radius: 0; box-shadow: none; border: none;
             }
-            /* FIX: Renamed mobile-staging-toggle */
             #mobile-deck-toggle {
                 flex-shrink: 0; background-color: #ffffff; border-top: 1px solid #d1d5db;
                 padding: 1rem; font-weight: 600; text-align: center; cursor: pointer;
             }
-            /* FIX: Renamed mobile-staging-drawer */
             #mobile-deck-drawer {
                 flex-shrink: 0; background-color: #e5e7eb; height: 200px;
                 overflow-x: auto; display: none; align-items: center;
@@ -437,8 +434,8 @@
     <!-- FIX: Removed inline style 'display: none' -->
     <div id="modal-container">
         <!-- FIX: Re-structured modal for scrolling -->
-        <div class="p-6 flex-shrink-0">
-            <h2 id="modal-title-text" class="text-2xl font-bold text-gray-900">Modal Title</h2>
+        <div class="p-6 pb-0 flex-shrink-0">
+            <h2 id="modal-title-text" class="text-2xl font-bold text-gray-900 mb-6">Modal Title</h2>
         </div>
         <div id="modal-content" class="text-gray-700">
             <!-- Modal content injected here -->
@@ -1890,7 +1887,7 @@
                 });
             };
             
-            function joinSession() {
+            function joinSession(joinId = null) {
                 const savedName = localStorage.getItem('decomBoardUserName') || '';
                 const content = `
                     <div class="space-y-4">
@@ -1898,12 +1895,16 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                             <input type="text" id="modal-user-name" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${savedName}">
                         </div>
-                        <p class="mb-4">Scan the QR code from the host's screen.</p>
-                        <div id="qr-reader"></div>
-                        <p class="text-center text-gray-500 my-2">OR</p>
+                        <!-- NEW: Hide QR scanner if joinId is present -->
+                        <div id="qr-scanner-section" class="${joinId ? 'hidden' : ''}">
+                            <p class="mb-4">Scan the QR code from the host's screen.</p>
+                            <div id="qr-reader"></div>
+                            <p class="text-center text-gray-500 my-2">OR</p>
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Enter Host ID</label>
-                            <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2">
+                            <!-- NEW: Pre-fill ID if present -->
+                            <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${joinId || ''}">
                         </div>
                         <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
                     </div>
@@ -1921,8 +1922,8 @@
                     hideModal();
                 });
             }
-            joinSessionBtnDesktop.onclick = joinSession;
-            mobileJoinBtn.onclick = joinSession;
+            joinSessionBtnDesktop.onclick = () => joinSession();
+            mobileJoinBtn.onclick = () => joinSession();
 
             function connectToHost(hostId, userName) {
                 if (peer) peer.destroy();
@@ -2001,6 +2002,14 @@
             loadState();
             renderAll();
             window.onresize = renderAll;
+            
+            // NEW: Check for URL join param
+            const urlParams = new URLSearchParams(window.location.search);
+            const joinId = urlParams.get('join');
+            if (joinId) {
+                // Automatically open the join modal
+                joinSession(joinId);
+            }
         
         }); // END of DOMContentLoaded wrapper
     </script>
