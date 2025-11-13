@@ -64,6 +64,15 @@
             z-index: -1;
         }
         
+        /* --- BUGFIX: Make video player div full-size --- */
+        #video-bg-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
         /* FIX: Target the iframe created by the API */
         #video-bg-player iframe {
             position: absolute;
@@ -437,6 +446,12 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.293a1 1 0 011.414 0L9 7.586V15a1 1 0 11-2 0V7.586L5.707 8.707a1 1 0 01-1.414-1.414l3-3z" clip-rule="evenodd" /></svg>
                     </button>
                     <input type="file" id="file-input" accept=".mim">
+                    
+                    <!-- --- NEW QR CODE LOCATION --- -->
+                    <button id="persistent-qr-container-footer" class="hidden items-center gap-2 p-1 bg-white rounded-lg shadow" title="Copy Join Link">
+                        <div id="persistent-qr-code-footer" class="w-16 h-16"></div>
+                    </button>
+                    <!-- --- END NEW QR CODE LOCATION --- -->
                 </div>
             </div>
 
@@ -446,10 +461,12 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
                     + Add New Card
                 </button>
-                <!-- NEW: Persistent QR Code -->
+                <!-- NEW: Persistent QR Code (REMOVED FROM HERE) -->
+                <!-- 
                 <button id="persistent-qr-container" class="hidden items-center gap-2 p-2 ml-auto" title="Copy Join Link">
                     <div id="persistent-qr-code" class="w-20 h-20"></div>
                 </button>
+                -->
             </div>
         </footer>
     </div>
@@ -584,7 +601,8 @@
             const chatSendBtn = document.getElementById('chat-send-btn');
             const clearChatBtn = document.getElementById('clear-chat-btn');
             // NEW: Persistent QR
-            const persistentQrContainer = document.getElementById('persistent-qr-container');
+            // const persistentQrContainer = document.getElementById('persistent-qr-container'); // OLD
+            const persistentQrContainerFooter = document.getElementById('persistent-qr-container-footer'); // NEW
             
             // --- Layout Toggles ---
             const layoutHorizontalBtn = document.getElementById('layout-horizontal-btn');
@@ -627,7 +645,12 @@
             
             // --- CORE FUNCTIONS ---
             function saveState() {
-                localStorage.setItem('decomBoardState', JSON.stringify(state));
+                // localStorage.setItem('decomBoardState', JSON.stringify(state)); // OLD
+                
+                // --- BUGFIX: Don't save transient user list ---
+                const stateToSave = { ...state, users: {} }; // Clear users before saving
+                localStorage.setItem('decomBoardState', JSON.stringify(stateToSave));
+                // --- END BUGFIX ---
             }
             
             // NEW: Helper to convert hex to rgba
@@ -650,7 +673,12 @@
                 if (savedState) {
                     state = JSON.parse(savedState);
                     if (!state.chat) state.chat = [];
-                    if (!state.users) state.users = {};
+                    // if (!state.users) state.users = {}; // OLD
+                    
+                    // --- BUGFIX: Always reset user list on load ---
+                    state.users = {}; 
+                    // --- END BUGFIX ---
+                    
                     if (!state.desktopLayout) state.desktopLayout = 'horizontal';
                     if (!state.settings) {
                         state.settings = { 
@@ -1036,7 +1064,8 @@
                 mobileConnectionStatus.onclick = handleShowParticipants;
                 
                 // NEW: QR Code Copy listener
-                persistentQrContainer.onclick = handleCopyJoinLink;
+                // persistentQrContainer.onclick = handleCopyJoinLink; // OLD
+                persistentQrContainerFooter.onclick = handleCopyJoinLink; // NEW
             }
             
             function handleAppClick(e) {
@@ -2026,16 +2055,22 @@
                     });
                     
                     // NEW: Show persistent QR code
-                    persistentQrContainer.classList.remove('hidden');
-                    persistentQrContainer.classList.add('flex');
-                    const persistentQrEl = document.getElementById('persistent-qr-code');
+                    // persistentQrContainer.classList.remove('hidden'); // OLD
+                    // persistentQrContainer.classList.add('flex'); // OLD
+                    // const persistentQrEl = document.getElementById('persistent-qr-code'); // OLD
+                    persistentQrContainerFooter.classList.remove('hidden'); // NEW
+                    persistentQrContainerFooter.classList.add('flex'); // NEW
+                    const persistentQrEl = document.getElementById('persistent-qr-code-footer'); // NEW
+                    
                     persistentQrEl.innerHTML = '';
                     // NEW: Encode the full URL
                     const joinUrl = `${window.location.origin}${window.location.pathname}?join=${id}`;
                     new QRCode(persistentQrEl, {
                         text: joinUrl,
-                        width: 80, // FIX: Larger QR Code
-                        height: 80,
+                        // width: 80, // OLD
+                        // height: 80, // OLD
+                        width: 64, // NEW
+                        height: 64, // NEW
                         colorDark : "#000000",
                         colorLight : "#ffffff",
                         correctLevel : QRCode.CorrectLevel.M // Lower res for small size
@@ -2128,8 +2163,10 @@
                         const statusText = connections.length > 0 ? `Live (${connections.length} other${connections.length > 1 ? 's' : ''})` : 'Waiting for others...';
                         setConnectionStatus(statusText);
                         if (connections.length === 0) {
-                            persistentQrContainer.classList.add('hidden');
-                            persistentQrContainer.classList.remove('flex');
+                            // persistentQrContainer.classList.add('hidden'); // OLD
+                            // persistentQrContainer.classList.remove('flex'); // OLD
+                            persistentQrContainerFooter.classList.add('hidden'); // NEW
+                            persistentQrContainerFooter.classList.remove('flex'); // NEW
                         }
                     });
                 });
@@ -2194,8 +2231,10 @@
                 if (status === 'Offline') {
                     connectionStatus.className = 'text-sm text-gray-500 hover:text-indigo-600 transition-colors';
                     mobileConnectionStatus.className = 'text-sm text-gray-500 px-2';
-                    persistentQrContainer.classList.add('hidden');
-                    persistentQrContainer.classList.remove('flex');
+                    // persistentQrContainer.classList.add('hidden'); // OLD
+                    // persistentQrContainer.classList.remove('flex'); // OLD
+                    persistentQrContainerFooter.classList.add('hidden'); // NEW
+                    persistentQrContainerFooter.classList.remove('flex'); // NEW
                 } else if (statusText.startsWith('Live')) {
                     connectionStatus.className = 'text-sm text-green-600 font-medium hover:text-green-800 transition-colors';
                     mobileConnectionStatus.className = 'text-sm text-green-600 font-medium px-2';
@@ -2323,6 +2362,11 @@
                 
                 peer.on('open', (id) => {
                     myPeerId = id;
+                    
+                    // --- BUGFIX: Add self to local user list ---
+                    state.users[myPeerId] = userName; 
+                    // --- END BUGFIX ---
+                    
                     console.log('Client Peer ID:', id, 'connecting to', hostId);
                     setConnectionStatus('Connecting...');
                     
@@ -2345,6 +2389,11 @@
                             broadcast({ type: 'ANNOUNCE_USER', peerId: myPeerId, userName: userName });
                             
                             state = data.payload;
+                            
+                            // --- BUGFIX: Re-add self after host state override ---
+                            state.users[myPeerId] = userName; 
+                            // --- END BUGFIX ---
+                            
                             // saveAndRenderLocally(); // OLD
                             // --- NEW ---
                             applySettings();
