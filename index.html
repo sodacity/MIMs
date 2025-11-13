@@ -87,7 +87,8 @@
             margin: 0.5rem 0;
             height: 4rem; /* Give placeholder a small height */
         }
-        .staging-placeholder {
+        /* FIX: Renamed staging-placeholder */
+        .deck-placeholder {
             margin: 0 0.5rem;
             width: 4rem; /* Give placeholder a small width */
         }
@@ -122,18 +123,53 @@
             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
             z-index: 1000; display: none;
         }
+        /* FIX: Made modal vertically scrollable */
         #modal-container {
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%); z-index: 1001;
             display: none; width: 90%; max-width: 500px;
             background-color: #ffffff; color: #111827;
+            /* FIX: Add flex layout and max height */
+            display: flex;
+            flex-direction: column;
+            max-height: 85dvh;
+            border-radius: 0.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            visibility: hidden; /* Use visibility for show/hide */
+            opacity: 0;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
         }
+        #modal-container.active,
+        #modal-backdrop.active { 
+            display: flex; /* Use flex for layout */
+            visibility: visible;
+            opacity: 1;
+        }
+        #modal-backdrop.active {
+            display: block;
+        }
+
+        #modal-title-text {
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+        #modal-content {
+            overflow-y: auto; /* Make content scrollable */
+            padding: 1.5rem;
+        }
+        #modal-footer {
+            flex-shrink: 0; /* Prevent footer from shrinking */
+            background-color: #f9fafb; /* bg-gray-50 */
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem; /* space-x-3 */
+        }
+        
         /* Larger modal for editor */
         #modal-container.modal-lg {
             max-width: 800px;
         }
-        #modal-container.active,
-        #modal-backdrop.active { display: block; }
         
         /* Custom scrollbar */
         .horizontal-scroll {
@@ -159,13 +195,15 @@
             #desktop-ui { display: none; }
             #mobile-ui {
                 display: flex; flex-direction: column; 
-                /* FIX: Use 100% to fill body's 100dvh */
-                height: 100%; 
+                /* FIX: Use 100dvh for mobile layout */
+                height: 100dvh; 
                 overflow: hidden; background-color: #f3f4f6;
             }
             #mobile-swiper {
                 flex: 1; display: flex; overflow-x: auto;
                 scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none;
+                /* Allow vertical scrolling within swiper if content is tall */
+                overflow-y: auto;
             }
             #mobile-swiper::-webkit-scrollbar { display: none; }
             #mobile-swiper > .kanban-section {
@@ -396,14 +434,16 @@
     <div id="drop-zone" class="text-white text-2xl font-bold"><p>Drop .mim file to load</p></div>
     
     <div id="modal-backdrop"></div>
-    <div id="modal-container" class="bg-white rounded-lg shadow-2xl overflow-hidden">
-        <div class="p-6">
-            <h2 id="modal-title-text" class="text-2xl font-bold text-gray-900 mb-6">Modal Title</h2>
-            <div id="modal-content" class="text-gray-700">
-                <!-- Modal content injected here -->
-            </div>
+    <!-- FIX: Removed inline style 'display: none' -->
+    <div id="modal-container">
+        <!-- FIX: Re-structured modal for scrolling -->
+        <div class="p-6 flex-shrink-0">
+            <h2 id="modal-title-text" class="text-2xl font-bold text-gray-900">Modal Title</h2>
         </div>
-        <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+        <div id="modal-content" class="text-gray-700">
+            <!-- Modal content injected here -->
+        </div>
+        <div id="modal-footer">
             <button id="modal-cancel-btn" class="px-5 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-all">Cancel</button>
             <button id="modal-confirm-btn" class="px-5 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-500 transition-all">Confirm</button>
         </div>
@@ -568,9 +608,14 @@
                                migrated = true;
                             }
                         }
+                        // FIX: Ensure all cards have sectionId
+                        if (!card.sectionId) {
+                            card.sectionId = 'deck';
+                            migrated = true;
+                        }
                     });
                     if (migrated) {
-                        console.log("Data migrated: serial -> title, assetTag -> notes");
+                        console.log("Data migrated: serial -> title, assetTag -> notes, added sectionId");
                         saveState();
                     }
 
@@ -1285,13 +1330,13 @@
                 if (!draggingCard) return;
 
                 if (isHorizontal) {
-                    placeholder.classList.add('staging-placeholder');
+                    placeholder.classList.add('deck-placeholder');
                     placeholder.classList.remove('section-placeholder');
                     placeholder.style.width = `${draggingCard.offsetWidth}px`;
                     placeholder.style.height = `${draggingCard.offsetHeight}px`;
                 } else {
                     placeholder.classList.add('section-placeholder');
-                    placeholder.classList.remove('staging-placeholder');
+                    placeholder.classList.remove('deck-placeholder');
                     placeholder.style.width = '100%';
                     placeholder.style.height = `${draggingCard.offsetHeight}px`;
                 }
