@@ -80,11 +80,23 @@
             left: 50%;
             transform: translate(-50%, -50%);
             /* FIX: This is the "cover" logic you wanted from Nillow */
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
+            /* min-width: 100%; */
+            /* min-height: 100%; */
+            /* width: auto; */
+            /* height: auto; */
             pointer-events: none;
+
+            /* --- NEW "COVER" LOGIC --- */
+            /* Start with a base size matching the screen width */
+            width: 100vw;
+            height: calc(100vw * 9 / 16); /* 56.25vw = 16:9 aspect ratio */
+
+            /* If the screen is TALLER than 16:9 (e.g., mobile) */
+            /* this min-height will be larger than the height above */
+            /* and the min-width will be smaller than the width above. */
+            /* This will make the video fill the height. */
+            min-height: 100vh;
+            min-width: calc(100vh * 16 / 9); /* 177.77vh = 16:9 aspect ratio */
         }
         
         /* Style for the card being dragged */
