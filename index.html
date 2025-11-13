@@ -22,7 +22,8 @@
                     },
                     colors: {
                         // 'kanban-bg': '#3498db', // This will be set by JS
-                        'kanban-section-body': '#f3f4f6',
+                        // FIX: Added transparent color for section body
+                        'kanban-section-body': 'rgba(243, 244, 246, 0.9)', // light gray with opacity
                         'kanban-card': '#ffffff',
                         'kanban-footer': '#ffffff',
                     }
@@ -196,7 +197,19 @@
                 display: flex; flex-direction: column; 
                 /* FIX: Use 100dvh for mobile layout */
                 height: 100dvh; 
-                overflow: hidden; background-color: #f3f4f6;
+                overflow: hidden; 
+                /* Mobile bg is always light */
+                background-color: #f3f4f6 !important;
+            }
+            /* NEW: Mobile top bar */
+            #mobile-top-bar {
+                flex-shrink: 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem;
+                background-color: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             #mobile-swiper {
                 flex: 1; display: flex; overflow-x: auto;
@@ -362,8 +375,14 @@
                     <div id="connection-status" class="text-sm text-gray-500">Offline</div>
                 </div>
                 <div class="flex items-center space-x-3">
+                    <!-- NEW: Persistent QR Code -->
+                    <div id="persistent-qr-container" class="hidden items-center gap-2 pr-4 border-r mr-2">
+                        <span class="text-sm font-medium text-gray-600">Scan to Join:</span>
+                        <div id="persistent-qr-code" class="w-12 h-12"></div>
+                    </div>
+                
                     <!-- Layout Toggles -->
-                    <div id="layout-toggle-btns" class="flex items-center space-x-2 mr-4">
+                    <div id="layout-toggle-btns" class="flex items-center space-x-2">
                         <button id="layout-horizontal-btn" title="Stack Horizontally" class="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="8" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="16" y2="21"></line></svg>
                         </button>
@@ -526,6 +545,8 @@
             const chatInput = document.getElementById('chat-input');
             const chatSendBtn = document.getElementById('chat-send-btn');
             const clearChatBtn = document.getElementById('clear-chat-btn');
+            // NEW: Persistent QR
+            const persistentQrContainer = document.getElementById('persistent-qr-container');
             
             // --- Layout Toggles ---
             const layoutHorizontalBtn = document.getElementById('layout-horizontal-btn');
@@ -545,7 +566,8 @@
                 settings: { // NEW
                     backgroundType: 'color', // 'color' or 'video'
                     backgroundColor: DEFAULT_BG_COLOR,
-                    bgVideoId: null
+                    bgVideoId: null,
+                    sectionOpacity: 1 // NEW: Opacity
                 },
                 desktopLayout: 'horizontal'
             };
@@ -568,6 +590,21 @@
             function saveState() {
                 localStorage.setItem('decomBoardState', JSON.stringify(state));
             }
+            
+            // NEW: Helper to convert hex to rgba
+            function hexToRgba(hex, opacity) {
+                let c;
+                if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                    c= hex.substring(1).split('');
+                    if(c.length== 3){
+                        c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+                    }
+                    c= '0x'+c.join('');
+                    return `rgba(${[(c>>16)&255, (c>>8)&255, c&255].join(',')},${opacity})`;
+                }
+                // Fallback for invalid hex
+                return `rgba(107, 114, 128, ${opacity})`; // gray-500
+            }
 
             function loadState() {
                 const savedState = localStorage.getItem('decomBoardState');
@@ -580,15 +617,13 @@
                         state.settings = { 
                             backgroundType: 'color', 
                             backgroundColor: DEFAULT_BG_COLOR,
-                            bgVideoId: null
+                            bgVideoId: null,
+                            sectionOpacity: 1
                         };
                     }
-                    if (!state.settings.backgroundColor) {
-                        state.settings.backgroundColor = DEFAULT_BG_COLOR;
-                    }
-                    if (!state.settings.backgroundType) {
-                        state.settings.backgroundType = 'color';
-                    }
+                    if (!state.settings.backgroundColor) state.settings.backgroundColor = DEFAULT_BG_COLOR;
+                    if (!state.settings.backgroundType) state.settings.backgroundType = 'color';
+                    if (!state.settings.sectionOpacity) state.settings.sectionOpacity = 1;
                     
                     // Data migration
                     let migrated = false;
@@ -605,7 +640,6 @@
                                migrated = true;
                             }
                         }
-                        // FIX: Ensure all cards have sectionId
                         if (!card.sectionId) {
                             card.sectionId = 'deck';
                             migrated = true;
@@ -629,7 +663,8 @@
                         settings: { 
                             backgroundType: 'color', 
                             backgroundColor: DEFAULT_BG_COLOR,
-                            bgVideoId: null
+                            bgVideoId: null,
+                            sectionOpacity: 1
                         },
                         desktopLayout: 'horizontal'
                     };
@@ -647,6 +682,7 @@
                     document.body.style.backgroundColor = state.settings.backgroundColor || DEFAULT_BG_COLOR;
                     stopVideoPlayer();
                 }
+                // We re-render all sections to apply opacity, so no need to do it here
             }
             
             function renderAll() {
@@ -693,7 +729,6 @@
                 
                 boardContainer.appendChild(createAddSectionButton());
                 
-                // FIX: Renamed deckArea
                 deckArea.innerHTML = '';
                 const deckCards = state.cards
                     .filter(card => card.sectionId === 'deck')
@@ -727,7 +762,6 @@
                 
                 mobileSwiper.appendChild(createAddSectionButton());
                 
-                // FIX: Renamed mobileDeckDrawer
                 mobileDeckDrawer.innerHTML = '';
                 const deckCards = state.cards
                     .filter(card => card.sectionId === 'deck')
@@ -745,8 +779,12 @@
                 sectionEl.className = 'kanban-section w-80 rounded-lg shadow-xl flex flex-col flex-shrink-0 overflow-hidden relative';
                 sectionEl.dataset.sectionId = section.id;
                 
-                const headerColor = section.color || '#6b7280';
+                // NEW: Apply opacity
+                const opacity = state.settings.sectionOpacity || 1;
+                const headerColor = hexToRgba(section.color || '#6b7280', opacity);
                 const headerTextColor = '#ffffff';
+                const bodyColor = hexToRgba('#f3f4f6', opacity); // 'kanban-section-body'
+                
 
                 sectionEl.innerHTML = `
                     <div draggable="true" class="kanban-section-header p-4 flex justify-between items-center cursor-grab active:cursor-grabbing" style="background-color: ${headerColor}; color: ${headerTextColor};">
@@ -755,7 +793,8 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
-                    <div class="card-list flex-1 p-4 space-y-4 overflow-y-auto horizontal-scroll bg-kanban-section-body" data-section-id="${section.id}">
+                    <!-- NEW: Use inline style for opacity -->
+                    <div class="card-list flex-1 p-4 space-y-4 overflow-y-auto horizontal-scroll" data-section-id="${section.id}" style="background-color: ${bodyColor};">
                         <!-- Cards go here -->
                     </div>
                 `;
@@ -780,7 +819,6 @@
 
             function createCardElement(card) {
                 const cardEl = document.createElement('div');
-                // FIX: Renamed staging
                 const isDeck = card.sectionId === 'deck';
                 const cardWidthClass = isDeck ? 'w-64' : 'w-full';
 
@@ -877,7 +915,6 @@
                 boardContainer.addEventListener('drop', handleSectionDrop);
 
                 // Mobile Listeners
-                // FIX: Renamed mobileDeckToggle
                 mobileDeckToggle.onclick = () => {
                     mobileDeckDrawer.classList.toggle('active');
                 };
@@ -1006,7 +1043,6 @@
                             id: `card-${Date.now()}`,
                             title: title,
                             notes: '', 
-                            // FIX: Renamed staging
                             sectionId: 'deck',
                             order: state.cards.filter(c => c.sectionId === 'deck').length
                         };
@@ -1168,13 +1204,14 @@
                 let selectedBgColor = state.settings.backgroundColor;
                 let selectedBgType = state.settings.backgroundType;
                 let bgVideoId = state.settings.bgVideoId;
+                let currentOpacity = state.settings.sectionOpacity;
                 
                 const bgSwatchesHTML = bgColors.map(color => `
                     <div class="color-swatch ${color === selectedBgColor ? 'selected' : ''}" style="background-color: ${color};" data-color="${color}"></div>
                 `).join('');
 
                 const content = `
-                    <div class="space-y-4">
+                    <div class="space-y-6">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Background Type</label>
                             <select id="bg-type-select" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -1195,6 +1232,12 @@
                             <input type="text" id="modal-video-url" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${bgVideoId ? `https://www.youtube.com/watch?v=${bgVideoId}` : ''}">
                             <p class="text-xs text-gray-500 mt-1">e.g., https://www.youtube.com/watch?v=jfKfPfyJRdk</p>
                         </div>
+                        
+                        <!-- NEW: Opacity Slider -->
+                        <div>
+                            <label for="opacity-slider" class="block text-sm font-medium text-gray-700">Section Opacity</label>
+                            <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="${currentOpacity}" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
                     </div>
                 `;
                 
@@ -1203,11 +1246,13 @@
                     const newBgType = document.getElementById('bg-type-select').value;
                     const newVideoUrl = document.getElementById('modal-video-url').value;
                     const newVideoId = parseYouTubeUrl(newVideoUrl);
+                    const newOpacity = document.getElementById('opacity-slider').value;
                     
                     const newSettings = {
                         backgroundType: newBgType,
-                        backgroundColor: selectedBgColor, // This was updated live
-                        bgVideoId: newVideoId
+                        backgroundColor: selectedBgColor,
+                        bgVideoId: newVideoId,
+                        sectionOpacity: parseFloat(newOpacity)
                     };
                     
                     const action = { type: 'UPDATE_SETTINGS', settings: newSettings };
@@ -1223,13 +1268,23 @@
                         swatch.classList.add('selected');
                         selectedBgColor = swatch.dataset.color;
                         
-                        // Apply and save color
                         const action = { 
                             type: 'UPDATE_SETTINGS', 
                             settings: { ...state.settings, backgroundColor: selectedBgColor } 
                         };
                         submitAction(action);
                     });
+                });
+                
+                // Add listener to opacity slider to apply *instantly*
+                const opacitySlider = document.getElementById('opacity-slider');
+                opacitySlider.addEventListener('input', (e) => {
+                    const newOpacity = parseFloat(e.target.value);
+                    const action = {
+                        type: 'UPDATE_SETTINGS',
+                        settings: { ...state.settings, sectionOpacity: newOpacity }
+                    };
+                    submitAction(action); // This will re-render all sections
                 });
                 
                 // Add listener to toggle
@@ -1530,12 +1585,10 @@
                             setTimeout(() => chatFab.classList.remove('bouncing'), 1200);
                         }
                         return; 
-                    // FIX: Moved 'CLEAR_CHAT' inside the switch
                     case 'CLEAR_CHAT':
                         state.chat = [];
                         renderChat();
                         return;
-                    // NEW: Update settings
                     case 'UPDATE_SETTINGS':
                         state.settings = action.settings;
                         applySettings(); // Apply instantly
@@ -1612,7 +1665,8 @@
                             if (!state.settings) state.settings = { 
                                 backgroundType: 'color', 
                                 backgroundColor: DEFAULT_BG_COLOR,
-                                bgVideoId: null
+                                bgVideoId: null,
+                                sectionOpacity: 1
                             };
                             
                             saveAndRenderLocally();
@@ -1749,6 +1803,20 @@
                             }
                         });
                     });
+                    
+                    // NEW: Show persistent QR code
+                    persistentQrContainer.classList.remove('hidden');
+                    persistentQrContainer.classList.add('flex');
+                    const persistentQrEl = document.getElementById('persistent-qr-code');
+                    persistentQrEl.innerHTML = '';
+                    new QRCode(persistentQrEl, {
+                        text: id,
+                        width: 48,
+                        height: 48,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.M // Lower res for small size
+                    });
                 });
                 
                 peer.on('connection', (conn) => {
@@ -1774,6 +1842,10 @@
                         connections = connections.filter(c => c.peer !== conn.peer);
                         delete state.users[conn.peer];
                         setConnectionStatus(connections.length > 0 ? `Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})` : 'Waiting for peers...');
+                        if (connections.length === 0) {
+                            persistentQrContainer.classList.add('hidden');
+                            persistentQrContainer.classList.remove('flex');
+                        }
                     });
                 });
                 
@@ -1816,6 +1888,8 @@
                 if (status === 'Offline') {
                     connectionStatus.className = 'text-sm text-gray-500';
                     mobileConnectionStatus.className = 'text-sm text-gray-500 px-2';
+                    persistentQrContainer.classList.add('hidden');
+                    persistentQrContainer.classList.remove('flex');
                 } else if (status.startsWith('Connected')) {
                     connectionStatus.className = 'text-sm text-green-600 font-medium';
                     mobileConnectionStatus.className = 'text-sm text-green-600 font-medium px-2';
