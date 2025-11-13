@@ -373,6 +373,16 @@
         #welcome-arrow {
             animation: bounce-right 1.5s ease-in-out infinite;
         }
+        
+        /* --- BUGFIX: Card Land Animation --- */
+        @keyframes card-land {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .card-landed {
+            animation: card-land 0.3s ease-out;
+        }
 
     </style>
 </head>
@@ -729,12 +739,10 @@
                 
             }
             
-            // FIX: Added skipSettings flag
-            function renderAll(skipSettings = false) {
-                // FIX: Check if oldSettings exists before stringify
-                const oldSettings = state.settings ? JSON.parse(JSON.stringify(state.settings)) : {};
+            // FIX: Added skipSettings flag and oldSettings parameter
+            function renderAll(skipSettings = false, oldSettings = {}) {
                 if (!skipSettings) {
-                    applySettings(oldSettings);
+                    applySettings(oldSettings); // Use the passed-in oldSettings
                 }
                 
                 const isMobile = window.innerWidth <= 768;
@@ -1008,11 +1016,19 @@
                 // Layout Toggle Listeners
                 layoutHorizontalBtn.onclick = () => {
                     state.desktopLayout = 'horizontal';
-                    saveAndRenderLocally(true);
+                    // saveAndRenderLocally(true); // OLD
+                    // --- NEW ---
+                    const action = { type: 'LAYOUT_CHANGE' }; // A dummy action
+                    submitAction(action);
+                    // --- END NEW ---
                 };
                 layoutVerticalBtn.onclick = () => {
                     state.desktopLayout = 'vertical';
-                    saveAndRenderLocally(true);
+                    // saveAndRenderLocally(true); // OLD
+                    // --- NEW ---
+                    const action = { type: 'LAYOUT_CHANGE' }; // A dummy action
+                    submitAction(action);
+                    // --- END NEW ---
                 };
                 
                 // NEW: Participant list listener
@@ -1047,10 +1063,11 @@
                 }
             }
             
-            function saveAndRenderLocally(skipSettings = false) {
-                const oldSettings = JSON.parse(JSON.stringify(state.settings)); // Deep copy
+            function saveAndRenderLocally(skipSettings = false, oldSettings = {}) {
+                // const oldSettings = JSON.parse(JSON.stringify(state.settings)); // Deep copy // OLD
                 saveState();
-                renderAll(!skipSettings ? false : JSON.stringify(oldSettings) === JSON.stringify(state.settings));
+                // renderAll(!skipSettings ? false : JSON.stringify(oldSettings) === JSON.stringify(state.settings)); // OLD
+                renderAll(skipSettings, oldSettings); // NEW
             }
             
             // --- MODAL HANDLERS ---
@@ -1397,7 +1414,7 @@
                     const newOpacity = parseFloat(e.target.value);
                     // This is a UI-only change for now, will be saved on confirm
                     state.settings.sectionOpacity = newOpacity;
-                    renderAll(true); // Re-render without settings
+                    renderAll(true, {}); // Re-render but skip settings logic
                 });
                 
                 // Add listener to toggle
@@ -1436,7 +1453,7 @@
                 }
                 
                 const userListHTML = users.map(user => 
-                    `<li class="text-gray-700 text-lg">${user} ${user === state.users[myPeerId] ? '(You)' : ''}</li>`
+                    `<li class="text-gray-700 text-lg">${user} ${state.users[myPeerId] && user === state.users[myPeerId] ? '(You)' : ''}</li>`
                 ).join('');
                 
                 showModal(
@@ -1559,6 +1576,8 @@
                     dropZone.insertBefore(placeholder, afterElement);
                 }
             }
+            
+            // --- BUGFIX: Card Land Animation ---
             function handleDrop(e) {
                 e.preventDefault();
                 if (!draggedCardId) return; // Only handle card drops
@@ -1576,14 +1595,27 @@
                        newIndex = children.length;
                     }
                 }
+                
+                const cardIdToAnimate = draggedCardId; // <-- Save the ID
 
                 const action = {
                     type: 'MOVE_CARD',
-                    cardId: draggedCardId,
+                    cardId: cardIdToAnimate,
                     newSectionId: newSectionId,
                     newIndex: newIndex
                 };
                 submitAction(action);
+                
+                // --- ADD THIS CODE ---
+                // Find the card *after* the re-render
+                const cardEl = document.querySelector(`[data-card-id="${cardIdToAnimate}"]`);
+                if (cardEl) {
+                    cardEl.classList.add('card-landed');
+                    cardEl.addEventListener('animationend', () => {
+                        cardEl.classList.remove('card-landed');
+                    }, { once: true });
+                }
+                // --- END OF NEW CODE ---
             }
             function getDragAfterElementVertical(container, y) {
                 const draggableElements = [...container.querySelectorAll('.kanban-card:not(.dragging)')];
@@ -1679,8 +1711,8 @@
             }
 
             // --- ACTION HANDLERS ---
-            // FIX: Added skipSettings flag to prevent video reload
-            function handleAction(action, skipSettings = false) {
+            // --- BUGFIX: Background Switch ---
+            function handleAction(action) {
                 console.log('Handling action:', action);
                 let settingsChanged = false;
                 
@@ -1699,7 +1731,7 @@
                         break;
                     case 'MOVE_CARD':
                         const card = state.cards.find(c => c.id === action.cardId);
-                        if (!card) return;
+                        if (!card) return settingsChanged;
                         card.sectionId = action.newSectionId;
                         let otherCards = state.cards
                             .filter(c => c.sectionId === action.newSectionId && c.id !== action.cardId)
@@ -1718,7 +1750,7 @@
                     case 'ANNOUNCE_USER':
                         state.users[action.peerId] = action.userName;
                         renderChat(); 
-                        return; 
+                        return settingsChanged; // Return false
                     case 'CHAT_MESSAGE':
                         state.chat.push(action.message);
                         renderChat();
@@ -1730,11 +1762,16 @@
                             chatFab.classList.add('bouncing');
                             setTimeout(() => chatFab.classList.remove('bouncing'), 1200);
                         }
-                        return; 
+                        return settingsChanged; // Return false
                     case 'CLEAR_CHAT':
                         state.chat = [];
                         renderChat();
-                        return;
+                        return settingsChanged; // Return false
+                    // --- BUGFIX: Duplicate Participants ---
+                    case 'DELETE_USER':
+                        delete state.users[action.peerId];
+                        renderChat();
+                        return settingsChanged; // Return false
                     case 'UPDATE_SETTINGS':
                         // Check if settings actually changed
                         if (JSON.stringify(state.settings) !== JSON.stringify(action.settings)) {
@@ -1742,18 +1779,26 @@
                             settingsChanged = true;
                         }
                         break; 
+                    case 'LAYOUT_CHANGE':
+                        // This is a dummy action, does nothing to state
+                        // but ensures the render function runs
+                        break;
                 }
                 
-                // Only re-render settings if they changed.
-                saveAndRenderLocally(!settingsChanged);
+                // saveAndRenderLocally(!settingsChanged); // <-- GONE
+                return settingsChanged; // <-- NEW
             }
 
+            // --- BUGFIX: Background Switch ---
             function submitAction(action) {
-                // FIX: Pass skipSettings based on action type
-                const skipSettings = action.type !== 'UPDATE_SETTINGS';
+                const oldSettings = JSON.parse(JSON.stringify(state.settings)); // CAPTURE
                 
                 if (isHost || !peer) { // If host OR offline
-                    handleAction(action, skipSettings);
+                    const settingsChanged = handleAction(action); // Mutates state, returns bool
+                    
+                    saveState(); // Do this part...
+                    renderAll(action.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings); // ...and this part manually
+                    
                     if (isHost) broadcast(action);
                 } else { // If client
                     broadcast(action);
@@ -1806,6 +1851,7 @@
                 }
             });
             
+            // --- BUGFIX: Background Switch ---
             function loadMimFile(file) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -1824,7 +1870,12 @@
                                 sessionPassword: null
                             };
                             
-                            saveAndRenderLocally();
+                            // saveAndRenderLocally(); // OLD
+                            
+                            // --- NEW ---
+                            applySettings(); // Apply new settings from file
+                            saveAndRenderLocally(true, {}); // Re-render, but *skip* settings logic
+                            // --- END NEW ---
                             
                             if (isHost) {
                                 broadcast({ type: 'FULL_STATE', payload: state });
@@ -2017,7 +2068,13 @@
                                         if (data.type === 'ANNOUNCE_USER') {
                                             state.users[data.peerId] = data.userName;
                                         }
-                                        handleAction(data);
+                                        // handleAction(data); // OLD
+                                        // --- NEW ---
+                                        const oldSettings = JSON.parse(JSON.stringify(state.settings));
+                                        const settingsChanged = handleAction(data);
+                                        saveState();
+                                        renderAll(data.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings);
+                                        // --- END NEW ---
                                         broadcast(data); 
                                     });
                                     
@@ -2045,14 +2102,28 @@
                             if (data.type === 'ANNOUNCE_USER') {
                                 state.users[data.peerId] = data.userName;
                             }
-                            handleAction(data);
+                            // handleAction(data); // OLD
+                            // --- NEW ---
+                            const oldSettings = JSON.parse(JSON.stringify(state.settings));
+                            const settingsChanged = handleAction(data);
+                            saveState();
+                            renderAll(data.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings);
+                            // --- END NEW ---
                             broadcast(data); 
                         });
                     }
                     
+                    // --- BUGFIX: Duplicate Participants ---
                     conn.on('close', () => {
                         connections = connections.filter(c => c.peer !== conn.peer);
-                        delete state.users[conn.peer];
+                        // delete state.users[conn.peer]; // <-- OLD
+                        
+                        // --- NEW ---
+                        const action = { type: 'DELETE_USER', peerId: conn.peer };
+                        handleAction(action); // Host updates its own state
+                        broadcast(action); // Tell everyone else
+                        // --- END NEW ---
+                        
                         // FIX: Wording change
                         const statusText = connections.length > 0 ? `Live (${connections.length} other${connections.length > 1 ? 's' : ''})` : 'Waiting for others...';
                         setConnectionStatus(statusText);
@@ -2263,6 +2334,7 @@
                         // Don't set status yet, wait for handshake
                     });
                     
+                    // --- BUGFIX: Background Switch ---
                     conn.on('data', (data) => {
                         console.log('Client received data:', data);
                         if (data.type === 'FULL_STATE') {
@@ -2273,7 +2345,11 @@
                             broadcast({ type: 'ANNOUNCE_USER', peerId: myPeerId, userName: userName });
                             
                             state = data.payload;
-                            saveAndRenderLocally();
+                            // saveAndRenderLocally(); // OLD
+                            // --- NEW ---
+                            applySettings();
+                            saveAndRenderLocally(true, {});
+                            // --- END NEW ---
                         } else if (data.type === 'PASSWORD_REQUIRED') {
                             // Host needs a password
                             hideModal(); // Hide the join modal
@@ -2297,7 +2373,14 @@
                                 console.error("Auth failed, modal context lost.");
                             }
                         } else {
-                            handleAction(data);
+                            // handleAction(data); // <-- OLD
+                            
+                            // --- NEW ---
+                            const oldSettings = JSON.parse(JSON.stringify(state.settings));
+                            const settingsChanged = handleAction(data);
+                            saveState();
+                            renderAll(data.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings);
+                            // --- END NEW ---
                         }
                     });
                     
@@ -2346,8 +2429,10 @@
 
             // --- INITIALIZATION ---
             loadState();
-            renderAll();
-            window.onresize = renderAll;
+            // renderAll(); // OLD
+            renderAll(true, {}); // --- BUGFIX: Background Switch ---
+            // window.onresize = renderAll; // OLD
+            window.onresize = () => renderAll(true, {}); // --- BUGFIX: Background Switch ---
             
             // NEW: Check for URL join param
             const urlParams = new URLSearchParams(window.location.search);
