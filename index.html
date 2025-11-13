@@ -64,15 +64,9 @@
             z-index: -1;
         }
         #video-bg-player {
-            /* FIX: Use object-fit: cover style positioning */
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
+            /* FIX: Ignore aspect ratio and stretch to fill */
+            width: 100%;
+            height: 100%;
             pointer-events: none; /* Make it unclickable */
         }
         
@@ -350,6 +344,26 @@
         }
         .card-edit-area {
             cursor: pointer;
+        }
+        
+        /* NEW: Welcome Card */
+        #welcome-card {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin: 2rem;
+            max-width: 500px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+        
+        @keyframes bounce-right {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(8px); }
+        }
+        
+        #welcome-arrow {
+            animation: bounce-right 1.5s ease-in-out infinite;
         }
 
     </style>
@@ -654,18 +668,20 @@
                             migrated = true;
                         }
                     });
-                    if (migrated) {
-                        console.log("Data migrated: serial -> title, assetTag -> notes, added sectionId");
-                        saveState();
+                    
+                    // FIX: Remove default sections if they exist from old state
+                    if (state.sections.length > 0 && state.cards.length === 0) {
+                         const defaultTitles = ["Backlog", "Doing", "Done"];
+                         if (state.sections.every(s => defaultTitles.includes(s.title))) {
+                             state.sections = [];
+                             console.log("Removed default sections from old state.");
+                         }
                     }
 
                 } else {
                     state = {
-                        sections: [
-                            { id: `sec-${Date.now()}`, title: "Backlog", color: "#ec4899", order: 0 },
-                            { id: `sec-${Date.now() + 1}`, title: "Doing", color: "#f59e0b", order: 1 },
-                            { id: `sec-${Date.now() + 2}`, title: "Done", color: "#10b981", order: 2 }
-                        ],
+                        // FIX: Start with no sections
+                        sections: [],
                         cards: [],
                         chat: [],
                         users: {},
@@ -699,21 +715,6 @@
                     }
                 }
                 
-                // Handle Opacity
-                if (newSettings.sectionOpacity !== oldSettings.sectionOpacity) {
-                    // This will be reapplied during renderAll, but we can do it here too
-                    // to make the slider feel responsive
-                    const opacity = newSettings.sectionOpacity || 1;
-                    document.querySelectorAll('.kanban-section-header').forEach(el => {
-                        // This is tricky as it's an inline style. Re-rendering is safer.
-                    });
-                    document.querySelectorAll('.card-list').forEach(el => {
-                        if (el.id !== 'deck-area') {
-                             el.style.backgroundColor = hexToRgba('#f3f4f6', opacity);
-                        }
-                    });
-                }
-                
                 // NEW: Apply Deck opacity
                 const opacity = newSettings.sectionOpacity || 1;
                 desktopFooter.style.backgroundColor = hexToRgba('#ffffff', opacity);
@@ -723,7 +724,8 @@
             // FIX: Added skipSettings flag
             function renderAll(skipSettings = false) {
                 if (!skipSettings) {
-                    applySettings();
+                    const oldSettings = JSON.parse(JSON.stringify(state.settings)); // Deep copy
+                    applySettings(oldSettings);
                 }
                 
                 const isMobile = window.innerWidth <= 768;
@@ -746,6 +748,20 @@
                 } else {
                     boardContainer.classList.add('desktop-horizontal');
                     boardContainer.classList.remove('desktop-vertical', 'overflow-y-auto');
+                }
+                
+                // NEW: Show welcome message if no sections
+                if (state.sections.length === 0) {
+                    boardContainer.innerHTML = `
+                        <div id="welcome-card" class="bg-white/90 rounded-lg p-8 m-8 max-w-lg shadow-lg relative">
+                            <h2 class="text-3xl font-bold text-gray-900 mb-4">Welcome to mimSense!</h2>
+                            <p class="text-gray-700 text-lg mb-6">This is your new collaborative board. Get started by creating your first section.</p>
+                            <p class="text-gray-700">You can create sections (like "To Do" or "Done") and then add cards to your "Deck" below to drag into them.</p>
+                            <div id="welcome-arrow" class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full px-4">
+                                <svg class="w-20 h-20 text-indigo-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                            </div>
+                        </div>
+                    `;
                 }
 
                 state.sections
@@ -786,6 +802,20 @@
             function renderMobileUI() {
                 mobileSwiper.innerHTML = ''; 
                 
+                 // NEW: Show welcome message if no sections
+                if (state.sections.length === 0) {
+                    mobileSwiper.innerHTML = `
+                        <div id="welcome-card" class="bg-white/90 rounded-lg p-8 m-8 max-w-lg shadow-lg relative flex-shrink-0 w-[calc(100%-4rem)]">
+                            <h2 class="text-3xl font-bold text-gray-900 mb-4">Welcome to mimSense!</h2>
+                            <p class="text-gray-700 text-lg mb-6">Get started by creating your first section.</p>
+                            <p class="text-gray-700">You can create sections (like "To Do" or "Done") and then add cards to your "Deck" below to drag into them.</p>
+                            <div id="welcome-arrow" class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full px-4">
+                                <svg class="w-16 h-16 text-indigo-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                            </div>
+                        </div>
+                    `;
+                }
+                
                 state.sections
                     .sort((a, b) => a.order - b.order)
                     .forEach(section => {
@@ -814,6 +844,11 @@
                     mobileDeckDrawer.appendChild(cardEl);
                 });
                 mobileDeckDrawer.appendChild(mobileAddCardBtn);
+                
+                // NEW: Apply Deck opacity to mobile footer
+                const opacity = state.settings.sectionOpacity || 1;
+                mobileDeckToggle.style.backgroundColor = hexToRgba('#ffffff', opacity);
+                mobileDeckDrawer.style.backgroundColor = hexToRgba('#e5e7eb', opacity);
             }
             
             function createSectionElement(section) {
@@ -936,7 +971,6 @@
                 mainApp.removeEventListener('click', handleAppClick); 
                 mainApp.addEventListener('click', handleAppClick);
 
-                // FIX: Consolidated dragstart handler
                 mainApp.removeEventListener('dragstart', onDragStart); 
                 mainApp.addEventListener('dragstart', onDragStart);
 
@@ -964,7 +998,6 @@
                 // Layout Toggle Listeners
                 layoutHorizontalBtn.onclick = () => {
                     state.desktopLayout = 'horizontal';
-                    // FIX: Pass skipSettings
                     saveAndRenderLocally(true);
                 };
                 layoutVerticalBtn.onclick = () => {
@@ -997,7 +1030,6 @@
                 }
             }
             
-            // FIX: Added skipSettings flag
             function saveAndRenderLocally(skipSettings = false) {
                 saveState();
                 renderAll(skipSettings);
@@ -1841,6 +1873,7 @@
                     
                     const content = `
                         <p class="text-center">Scan this QR code with your mobile device to join.</p>
+                        <!-- FIX: Use a div for the new QR library -->
                         <div id="qr-code-display" class="mx-auto my-4 w-48 h-48"></div>
                         <p class="text-center text-sm text-gray-500">Or manually enter ID:</p>
                         <input type="text" class="w-full bg-gray-100 text-center text-gray-700 p-2 rounded" value="${id}" readonly>
@@ -1849,10 +1882,12 @@
                     hideModal(); 
                     showModal('Session Started', content, hideModal);
                     
+                    // FIX: Use double requestAnimationFrame for QR code
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             const qrCodeEl = document.getElementById('qr-code-display');
                             if (qrCodeEl) {
+                                // FIX: Use the new QRCode.js API
                                 new QRCode(qrCodeEl, {
                                     text: id,
                                     width: 192,
@@ -1867,6 +1902,7 @@
                         });
                     });
                     
+                    // NEW: Show persistent QR code
                     persistentQrContainer.classList.remove('hidden');
                     persistentQrContainer.classList.add('flex');
                     const persistentQrEl = document.getElementById('persistent-qr-code');
@@ -1877,7 +1913,7 @@
                         height: 48,
                         colorDark : "#000000",
                         colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.M
+                        correctLevel : QRCode.CorrectLevel.M // Lower res for small size
                     });
                 });
                 
@@ -1954,6 +1990,7 @@
                     if (err.type === 'unavailable-id') {
                         setConnectionStatus('Offline');
                          const savedName = localStorage.getItem('decomBoardUserName') || '';
+                         // FIX: Rename default ID
                          const defaultId = `mimsense-${Math.floor(1000 + Math.random() * 9000)}`;
                          const content = `
                             <div class="space-y-4">
@@ -2078,6 +2115,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                             <input type="text" id="modal-user-name" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${savedName}">
                         </div>
+                        <!-- NEW: Hide QR scanner if joinId is present -->
                         <div id="qr-scanner-section" class="${joinId ? 'hidden' : ''}">
                             <p class="mb-4">Scan the QR code from the host's screen.</p>
                             <div id="qr-reader"></div>
@@ -2085,6 +2123,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Enter Host ID</label>
+                            <!-- NEW: Pre-fill ID if present -->
                             <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${joinId || ''}">
                         </div>
                         <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
@@ -2152,10 +2191,9 @@
                             if (errorEl) {
                                 errorEl.textContent = 'Incorrect password. Try again.';
                             } else {
-                                // We're in the wrong modal, close and show join again
+                                // This shouldn't happen, but as a fallback
                                 hideModal();
                                 joinSession(hostId);
-                                // This is tricky, but for now just log it
                                 console.error("Auth failed, modal context lost.");
                             }
                         } else {
