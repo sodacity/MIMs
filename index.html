@@ -22,10 +22,9 @@
                     },
                     colors: {
                         // 'kanban-bg': '#3498db', // This will be set by JS
-                        // FIX: Added transparent color for section body
                         'kanban-section-body': 'rgba(243, 244, 246, 0.9)', // light gray with opacity
                         'kanban-card': '#ffffff',
-                        'kanban-footer': '#ffffff',
+                        'kanban-footer': 'rgba(255, 255, 255, 1)', // Solid white by default
                     }
                 }
             }
@@ -65,9 +64,15 @@
             z-index: -1;
         }
         #video-bg-player {
-            /* FIX: Ignore aspect ratio by stretching */
-            width: 100%;
-            height: 100%;
+            /* FIX: Use object-fit: cover style positioning */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
             pointer-events: none; /* Make it unclickable */
         }
         
@@ -365,7 +370,7 @@
         </main>
         
         <!-- STAGING AREA FOOTER -->
-        <footer class="flex-shrink: 0; bg-kanban-footer border-t border-gray-200 shadow-inner">
+        <footer id="desktop-footer" class="flex-shrink: 0; bg-kanban-footer border-t border-gray-200 shadow-inner">
             <div class="flex justify-between items-center px-6 pt-4">
                 <div class="flex items-center space-x-4">
                     <!-- FIX: Renamed to Deck -->
@@ -377,7 +382,7 @@
                 <div class="flex items-center space-x-3">
                     <!-- NEW: Persistent QR Code -->
                     <div id="persistent-qr-container" class="hidden items-center gap-2 pr-4 border-r mr-2">
-                        <span class="text-sm font-medium text-gray-600">Scan to Join:</span>
+                        <!-- FIX: Removed "Scan to Join" text -->
                         <div id="persistent-qr-code" class="w-12 h-12"></div>
                     </div>
                 
@@ -525,6 +530,7 @@
             const modalContent = document.getElementById('modal-content');
             const modalCancelBtn = document.getElementById('modal-cancel-btn');
             const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const desktopFooter = document.getElementById('desktop-footer');
             
             // --- Mobile UI ---
             const mobileSwiper = document.getElementById('mobile-swiper');
@@ -567,7 +573,8 @@
                     backgroundType: 'color', // 'color' or 'video'
                     backgroundColor: DEFAULT_BG_COLOR,
                     bgVideoId: null,
-                    sectionOpacity: 1 // NEW: Opacity
+                    sectionOpacity: 1, // NEW: Opacity
+                    sessionPassword: null // NEW: Password
                 },
                 desktopLayout: 'horizontal'
             };
@@ -618,12 +625,14 @@
                             backgroundType: 'color', 
                             backgroundColor: DEFAULT_BG_COLOR,
                             bgVideoId: null,
-                            sectionOpacity: 1
+                            sectionOpacity: 1,
+                            sessionPassword: null
                         };
                     }
                     if (!state.settings.backgroundColor) state.settings.backgroundColor = DEFAULT_BG_COLOR;
                     if (!state.settings.backgroundType) state.settings.backgroundType = 'color';
                     if (!state.settings.sectionOpacity) state.settings.sectionOpacity = 1;
+                    // sessionPassword can be null, that's fine
                     
                     // Data migration
                     let migrated = false;
@@ -664,7 +673,8 @@
                             backgroundType: 'color', 
                             backgroundColor: DEFAULT_BG_COLOR,
                             bgVideoId: null,
-                            sectionOpacity: 1
+                            sectionOpacity: 1,
+                            sessionPassword: null
                         },
                         desktopLayout: 'horizontal'
                     };
@@ -674,19 +684,47 @@
             
             // --- RENDER FUNCTIONS ---
             
-            function applySettings() {
-                if (state.settings.backgroundType === 'video' && state.settings.bgVideoId) {
-                    document.body.style.backgroundColor = '#111827'; // Dark fallback
-                    loadVideoPlayer(state.settings.bgVideoId);
-                } else {
-                    document.body.style.backgroundColor = state.settings.backgroundColor || DEFAULT_BG_COLOR;
-                    stopVideoPlayer();
+            // FIX: Refactored this to only run when settings *change*
+            function applySettings(oldSettings = {}) {
+                const newSettings = state.settings;
+                
+                // Handle Background
+                if (newSettings.backgroundType !== oldSettings.backgroundType || newSettings.bgVideoId !== oldSettings.bgVideoId || newSettings.backgroundColor !== oldSettings.backgroundColor) {
+                    if (newSettings.backgroundType === 'video' && newSettings.bgVideoId) {
+                        document.body.style.backgroundColor = '#111827'; // Dark fallback
+                        loadVideoPlayer(newSettings.bgVideoId);
+                    } else {
+                        document.body.style.backgroundColor = newSettings.backgroundColor || DEFAULT_BG_COLOR;
+                        stopVideoPlayer();
+                    }
                 }
-                // We re-render all sections to apply opacity, so no need to do it here
+                
+                // Handle Opacity
+                if (newSettings.sectionOpacity !== oldSettings.sectionOpacity) {
+                    // This will be reapplied during renderAll, but we can do it here too
+                    // to make the slider feel responsive
+                    const opacity = newSettings.sectionOpacity || 1;
+                    document.querySelectorAll('.kanban-section-header').forEach(el => {
+                        // This is tricky as it's an inline style. Re-rendering is safer.
+                    });
+                    document.querySelectorAll('.card-list').forEach(el => {
+                        if (el.id !== 'deck-area') {
+                             el.style.backgroundColor = hexToRgba('#f3f4f6', opacity);
+                        }
+                    });
+                }
+                
+                // NEW: Apply Deck opacity
+                const opacity = newSettings.sectionOpacity || 1;
+                desktopFooter.style.backgroundColor = hexToRgba('#ffffff', opacity);
+                
             }
             
-            function renderAll() {
-                applySettings();
+            // FIX: Added skipSettings flag
+            function renderAll(skipSettings = false) {
+                if (!skipSettings) {
+                    applySettings();
+                }
                 
                 const isMobile = window.innerWidth <= 768;
                 if (isMobile) {
@@ -739,6 +777,10 @@
                     deckArea.appendChild(cardEl);
                 });
                 deckArea.appendChild(addCardBtn);
+                
+                // NEW: Apply Deck opacity
+                const opacity = state.settings.sectionOpacity || 1;
+                desktopFooter.style.backgroundColor = hexToRgba('#ffffff', opacity);
             }
             
             function renderMobileUI() {
@@ -922,11 +964,12 @@
                 // Layout Toggle Listeners
                 layoutHorizontalBtn.onclick = () => {
                     state.desktopLayout = 'horizontal';
-                    saveAndRenderLocally();
+                    // FIX: Pass skipSettings
+                    saveAndRenderLocally(true);
                 };
                 layoutVerticalBtn.onclick = () => {
                     state.desktopLayout = 'vertical';
-                    saveAndRenderLocally();
+                    saveAndRenderLocally(true);
                 };
             }
             
@@ -954,9 +997,10 @@
                 }
             }
             
-            function saveAndRenderLocally() {
+            // FIX: Added skipSettings flag
+            function saveAndRenderLocally(skipSettings = false) {
                 saveState();
-                renderAll();
+                renderAll(skipSettings);
             }
             
             // --- MODAL HANDLERS ---
@@ -1252,7 +1296,8 @@
                         backgroundType: newBgType,
                         backgroundColor: selectedBgColor,
                         bgVideoId: newVideoId,
-                        sectionOpacity: parseFloat(newOpacity)
+                        sectionOpacity: parseFloat(newOpacity),
+                        sessionPassword: state.settings.sessionPassword // Preserve password
                     };
                     
                     const action = { type: 'UPDATE_SETTINGS', settings: newSettings };
@@ -1270,7 +1315,7 @@
                         
                         const action = { 
                             type: 'UPDATE_SETTINGS', 
-                            settings: { ...state.settings, backgroundColor: selectedBgColor } 
+                            settings: { ...state.settings, backgroundColor: selectedBgColor, backgroundType: 'color' } 
                         };
                         submitAction(action);
                     });
@@ -1280,11 +1325,9 @@
                 const opacitySlider = document.getElementById('opacity-slider');
                 opacitySlider.addEventListener('input', (e) => {
                     const newOpacity = parseFloat(e.target.value);
-                    const action = {
-                        type: 'UPDATE_SETTINGS',
-                        settings: { ...state.settings, sectionOpacity: newOpacity }
-                    };
-                    submitAction(action); // This will re-render all sections
+                    // This is a UI-only change for now, will be saved on confirm
+                    state.settings.sectionOpacity = newOpacity;
+                    renderAll(true); // Re-render without settings
                 });
                 
                 // Add listener to toggle
@@ -1535,8 +1578,10 @@
             }
 
             // --- ACTION HANDLERS ---
-            function handleAction(action) {
+            // FIX: Added skipSettings flag to prevent video reload
+            function handleAction(action, skipSettings = false) {
                 console.log('Handling action:', action);
+                let settingsChanged = false;
                 
                 switch(action.type) {
                     case 'ADD_CARD': state.cards.push(action.card); break;
@@ -1590,16 +1635,24 @@
                         renderChat();
                         return;
                     case 'UPDATE_SETTINGS':
-                        state.settings = action.settings;
-                        applySettings(); // Apply instantly
-                        break; // Will fall through to saveAndRender
+                        // Check if settings actually changed
+                        if (JSON.stringify(state.settings) !== JSON.stringify(action.settings)) {
+                            state.settings = action.settings;
+                            settingsChanged = true;
+                        }
+                        break; 
                 }
-                saveAndRenderLocally();
+                
+                // Only re-render settings if they changed.
+                saveAndRenderLocally(!settingsChanged);
             }
 
             function submitAction(action) {
+                // FIX: Pass skipSettings based on action type
+                const skipSettings = action.type !== 'UPDATE_SETTINGS';
+                
                 if (isHost || !peer) { // If host OR offline
-                    handleAction(action);
+                    handleAction(action, skipSettings);
                     if (isHost) broadcast(action);
                 } else { // If client
                     broadcast(action);
@@ -1666,7 +1719,8 @@
                                 backgroundType: 'color', 
                                 backgroundColor: DEFAULT_BG_COLOR,
                                 bgVideoId: null,
-                                sectionOpacity: 1
+                                sectionOpacity: 1,
+                                sessionPassword: null
                             };
                             
                             saveAndRenderLocally();
@@ -1722,12 +1776,21 @@
                     return;
                 }
                 
+                // FIX: Check if player exists and is playing the right video
+                if (ytPlayer && typeof ytPlayer.getVideoData === 'function' && ytPlayer.getVideoData().video_id === videoId) {
+                    console.log('Video already playing.');
+                    return; // Don't reload
+                }
+                
                 const container = document.getElementById('video-bg-container');
                 container.style.display = 'block';
                 
-                if (ytPlayer) {
+                if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                     ytPlayer.loadVideoById(videoId);
                 } else {
+                    // Destroy old player if it exists but is broken
+                    if (ytPlayer) ytPlayer.destroy();
+                    
                     ytPlayer = new YT.Player('video-bg-player', {
                         videoId: videoId,
                         playerVars: {
@@ -1763,9 +1826,11 @@
             
             
             // --- PEERJS & CHAT LOGIC ---
-            function initHost(hostId, userName) {
+            function initHost(hostId, userName, password) {
                 if (peer) peer.destroy();
                 isHost = true;
+                // NEW: Store password in state
+                state.settings.sessionPassword = password || null;
                 peer = new Peer(hostId);
                 
                 peer.on('open', (id) => {
@@ -1776,20 +1841,18 @@
                     
                     const content = `
                         <p class="text-center">Scan this QR code with your mobile device to join.</p>
-                        <!-- FIX: Use a div for the new QR library -->
                         <div id="qr-code-display" class="mx-auto my-4 w-48 h-48"></div>
                         <p class="text-center text-sm text-gray-500">Or manually enter ID:</p>
                         <input type="text" class="w-full bg-gray-100 text-center text-gray-700 p-2 rounded" value="${id}" readonly>
+                        ${password ? `<p class="text-center text-sm text-red-500 font-medium mt-2">Password: ${password}</p>` : ''}
                     `;
                     hideModal(); 
                     showModal('Session Started', content, hideModal);
                     
-                    // FIX: Use double requestAnimationFrame for QR code
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             const qrCodeEl = document.getElementById('qr-code-display');
                             if (qrCodeEl) {
-                                // FIX: Use the new QRCode.js API
                                 new QRCode(qrCodeEl, {
                                     text: id,
                                     width: 192,
@@ -1804,7 +1867,6 @@
                         });
                     });
                     
-                    // NEW: Show persistent QR code
                     persistentQrContainer.classList.remove('hidden');
                     persistentQrContainer.classList.add('flex');
                     const persistentQrEl = document.getElementById('persistent-qr-code');
@@ -1815,28 +1877,66 @@
                         height: 48,
                         colorDark : "#000000",
                         colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.M // Lower res for small size
+                        correctLevel : QRCode.CorrectLevel.M
                     });
                 });
                 
                 peer.on('connection', (conn) => {
                     console.log('Peer connected:', conn.peer);
-                    connections.push(conn);
-                    setConnectionStatus(`Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})`);
-                    chatFab.style.display = 'flex';
                     
-                    conn.on('open', () => {
-                        conn.send({ type: 'FULL_STATE', payload: state });
-                    });
-                    
-                    conn.on('data', (data) => {
-                        console.log('Host received data:', data);
-                        if (data.type === 'ANNOUNCE_USER') {
-                            state.users[data.peerId] = data.userName;
-                        }
-                        handleAction(data);
-                        broadcast(data); 
-                    });
+                    // NEW: Password Handshake
+                    if (state.settings.sessionPassword) {
+                        // 1. Host has password, request it from client
+                        conn.on('open', () => {
+                            conn.send({ type: 'PASSWORD_REQUIRED' });
+                        });
+                        
+                        conn.on('data', (data) => {
+                           if (data.type === 'AUTH') {
+                               if (data.password === state.settings.sessionPassword) {
+                                   // 2. Password OK
+                                   console.log('Peer authenticated:', conn.peer);
+                                   connections.push(conn);
+                                   setConnectionStatus(`Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})`);
+                                   chatFab.style.display = 'flex';
+                                   conn.send({ type: 'FULL_STATE', payload: state });
+                                   
+                                   // Now set up normal listeners
+                                   conn.on('data', (data) => {
+                                        if (data.type === 'ANNOUNCE_USER') {
+                                            state.users[data.peerId] = data.userName;
+                                        }
+                                        handleAction(data);
+                                        broadcast(data); 
+                                    });
+                                    
+                               } else {
+                                   // 3. Password BAD
+                                   console.log('Peer auth failed:', conn.peer);
+                                   conn.send({ type: 'AUTH_FAILED' });
+                                   setTimeout(() => conn.close(), 100);
+                               }
+                           }
+                        });
+                        
+                    } else {
+                        // No password, connect immediately
+                        connections.push(conn);
+                        setConnectionStatus(`Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})`);
+                        chatFab.style.display = 'flex';
+                        
+                        conn.on('open', () => {
+                            conn.send({ type: 'FULL_STATE', payload: state });
+                        });
+                        
+                        conn.on('data', (data) => {
+                            if (data.type === 'ANNOUNCE_USER') {
+                                state.users[data.peerId] = data.userName;
+                            }
+                            handleAction(data);
+                            broadcast(data); 
+                        });
+                    }
                     
                     conn.on('close', () => {
                         connections = connections.filter(c => c.peer !== conn.peer);
@@ -1854,7 +1954,6 @@
                     if (err.type === 'unavailable-id') {
                         setConnectionStatus('Offline');
                          const savedName = localStorage.getItem('decomBoardUserName') || '';
-                         // FIX: Rename default ID
                          const defaultId = `mimsense-${Math.floor(1000 + Math.random() * 9000)}`;
                          const content = `
                             <div class="space-y-4">
@@ -1866,6 +1965,11 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Session ID</label>
                                     <input type="text" id="custom-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${defaultId}">
                                 </div>
+                                <!-- NEW: Password field -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Password (Optional)</label>
+                                    <input type="password" id="modal-session-password" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2">
+                                </div>
                                 <p id="peer-error" class="text-red-500 text-sm h-4 mt-2">Error: That ID is already taken. Try another.</p>
                             </div>
                         `;
@@ -1873,9 +1977,10 @@
                         showModal('Start a Session', content, () => {
                             const newCustomId = document.getElementById('custom-peer-id').value;
                             const userName = document.getElementById('modal-user-name').value;
+                            const password = document.getElementById('modal-session-password').value;
                             if (newCustomId && userName) {
                                  localStorage.setItem('decomBoardUserName', userName);
-                                 initHost(newCustomId, userName);
+                                 initHost(newCustomId, userName, password);
                             }
                         });
                     }
@@ -1907,20 +2012,19 @@
                         // Success
                         console.log(`QR Scanned: ${decodedText}`);
                         html5QrCode.stop();
-                        // Now find the other inputs in the modal
+                        
                         const userName = document.getElementById('modal-user-name').value;
                         const errorEl = document.getElementById('peer-error');
                         
                         if (!userName) {
                             errorEl.textContent = 'Your name is required.';
-                            // Don't close modal, let user enter name
                             html5QrCode.start({ facingMode: "environment" }, config, ()=>{}, ()=>{}); // Restart
                             return;
                         }
                         
                         localStorage.setItem('decomBoardUserName', userName);
                         connectToHost(decodedText, userName);
-                        hideModal();
+                        // Don't hide modal yet, connectToHost will
                     },
                     (errorMessage) => { /* console.log(errorMessage); */ } 
                 ).catch((err) => {
@@ -1931,7 +2035,6 @@
             
             startSessionBtn.onclick = () => {
                 const savedName = localStorage.getItem('decomBoardUserName') || '';
-                // FIX: Rename default ID
                 const defaultId = `mimsense-${Math.floor(1000 + Math.random() * 9000)}`;
                 const content = `
                     <div class="space-y-4">
@@ -1943,6 +2046,11 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Session ID</label>
                             <input type="text" id="custom-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${defaultId}">
                         </div>
+                        <!-- NEW: Password field -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Password (Optional)</label>
+                            <input type="password" id="modal-session-password" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2">
+                        </div>
                         <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
                     </div>
                 `;
@@ -1950,6 +2058,7 @@
                 showModal('Start a Session', content, () => {
                     const customId = document.getElementById('custom-peer-id').value;
                     const userName = document.getElementById('modal-user-name').value;
+                    const password = document.getElementById('modal-session-password').value;
                     const errorEl = document.getElementById('peer-error');
                     
                     if (!userName) { errorEl.textContent = 'Your name is required.'; return; }
@@ -1957,7 +2066,7 @@
                     if (/\s/.test(customId)) { errorEl.textContent = 'Session ID cannot contain spaces.'; return; }
                     
                     localStorage.setItem('decomBoardUserName', userName);
-                    initHost(customId, userName);
+                    initHost(customId, userName, password);
                 });
             };
             
@@ -1969,7 +2078,6 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                             <input type="text" id="modal-user-name" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${savedName}">
                         </div>
-                        <!-- NEW: Hide QR scanner if joinId is present -->
                         <div id="qr-scanner-section" class="${joinId ? 'hidden' : ''}">
                             <p class="mb-4">Scan the QR code from the host's screen.</p>
                             <div id="qr-reader"></div>
@@ -1977,7 +2085,6 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Enter Host ID</label>
-                            <!-- NEW: Pre-fill ID if present -->
                             <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${joinId || ''}">
                         </div>
                         <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
@@ -1993,7 +2100,7 @@
                     
                     localStorage.setItem('decomBoardUserName', userName);
                     connectToHost(manualId, userName);
-                    hideModal();
+                    // Don't hide modal, connectToHost will on success
                 });
             }
             joinSessionBtnDesktop.onclick = () => joinSession();
@@ -2014,16 +2121,43 @@
                     
                     conn.on('open', () => {
                         console.log('Connected to host!');
-                        setConnectionStatus('Connected (Client)');
-                        chatFab.style.display = 'flex';
-                        broadcast({ type: 'ANNOUNCE_USER', peerId: myPeerId, userName: userName });
+                        // Don't set status yet, wait for handshake
                     });
                     
                     conn.on('data', (data) => {
                         console.log('Client received data:', data);
                         if (data.type === 'FULL_STATE') {
+                            // Auth success!
+                            hideModal();
+                            setConnectionStatus('Connected (Client)');
+                            chatFab.style.display = 'flex';
+                            broadcast({ type: 'ANNOUNCE_USER', peerId: myPeerId, userName: userName });
+                            
                             state = data.payload;
                             saveAndRenderLocally();
+                        } else if (data.type === 'PASSWORD_REQUIRED') {
+                            // Host needs a password
+                            hideModal(); // Hide the join modal
+                            showModal('Password Required', `
+                                <p>This session requires a password.</p>
+                                <input type="password" id="modal-session-password" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2 mt-2">
+                                <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
+                            `, () => {
+                                const password = document.getElementById('modal-session-password').value;
+                                broadcast({ type: 'AUTH', password: password });
+                            });
+                        } else if (data.type === 'AUTH_FAILED') {
+                            // Wrong password
+                            const errorEl = document.getElementById('peer-error');
+                            if (errorEl) {
+                                errorEl.textContent = 'Incorrect password. Try again.';
+                            } else {
+                                // We're in the wrong modal, close and show join again
+                                hideModal();
+                                joinSession(hostId);
+                                // This is tricky, but for now just log it
+                                console.error("Auth failed, modal context lost.");
+                            }
                         } else {
                             handleAction(data);
                         }
