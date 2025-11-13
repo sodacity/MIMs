@@ -63,11 +63,17 @@
             background: rgba(0, 0, 0, 0.5); /* Dark tint */
             z-index: -1;
         }
-        #video-bg-player {
-            /* FIX: Ignore aspect ratio and stretch to fill */
-            width: 100%;
-            height: 100%;
-            pointer-events: none; /* Make it unclickable */
+        
+        /* FIX: Target the iframe created by the API */
+        #video-bg-player iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            /* This will stretch/distort to fill, ignoring aspect ratio */
+            object-fit: fill; 
+            pointer-events: none;
         }
         
         /* Style for the card being dragged */
@@ -391,14 +397,15 @@
                     <h2 class="text-lg font-semibold text-gray-700">Deck</h2>
                     <button id="start-session-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-all">Start Session</button>
                     <button id="join-session-btn-desktop" class="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-500 transition-all">Join Session</button>
-                    <div id="connection-status" class="text-sm text-gray-500">Offline</div>
+                    <!-- NEW: Changed div to button for participants list -->
+                    <button id="connection-status" class="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Offline</button>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <!-- NEW: Persistent QR Code -->
-                    <div id="persistent-qr-container" class="hidden items-center gap-2 pr-4 border-r mr-2">
+                    <!-- NEW: Persistent QR Code (as a button) -->
+                    <button id="persistent-qr-container" class="hidden items-center gap-2 pr-4 border-r mr-2" title="Copy Join Link">
                         <!-- FIX: Removed "Scan to Join" text -->
                         <div id="persistent-qr-code" class="w-12 h-12"></div>
-                    </div>
+                    </button>
                 
                     <!-- Layout Toggles -->
                     <div id="layout-toggle-btns" class="flex items-center space-x-2">
@@ -441,7 +448,8 @@
     <div id="mobile-ui">
         <!-- FIX: New Mobile Top Bar -->
         <div id="mobile-top-bar" class="flex-shrink-0 flex justify-between items-center p-2 bg-white shadow-md">
-            <div id="mobile-connection-status" class="text-sm text-gray-500 font-medium px-2">Offline</div>
+            <!-- NEW: Changed div to button -->
+            <button id="mobile-connection-status" class="text-sm text-gray-500 font-medium px-2">Offline</button>
             <button id="join-session-btn-mobile" class="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-500 transition-all">
                 Join
             </button>
@@ -723,8 +731,9 @@
             
             // FIX: Added skipSettings flag
             function renderAll(skipSettings = false) {
+                // FIX: Check if oldSettings exists before stringify
+                const oldSettings = state.settings ? JSON.parse(JSON.stringify(state.settings)) : {};
                 if (!skipSettings) {
-                    const oldSettings = JSON.parse(JSON.stringify(state.settings)); // Deep copy
                     applySettings(oldSettings);
                 }
                 
@@ -971,6 +980,7 @@
                 mainApp.removeEventListener('click', handleAppClick); 
                 mainApp.addEventListener('click', handleAppClick);
 
+                // FIX: Consolidated dragstart handler
                 mainApp.removeEventListener('dragstart', onDragStart); 
                 mainApp.addEventListener('dragstart', onDragStart);
 
@@ -1004,6 +1014,13 @@
                     state.desktopLayout = 'vertical';
                     saveAndRenderLocally(true);
                 };
+                
+                // NEW: Participant list listener
+                connectionStatus.onclick = handleShowParticipants;
+                mobileConnectionStatus.onclick = handleShowParticipants;
+                
+                // NEW: QR Code Copy listener
+                persistentQrContainer.onclick = handleCopyJoinLink;
             }
             
             function handleAppClick(e) {
@@ -1031,8 +1048,9 @@
             }
             
             function saveAndRenderLocally(skipSettings = false) {
+                const oldSettings = JSON.parse(JSON.stringify(state.settings)); // Deep copy
                 saveState();
-                renderAll(skipSettings);
+                renderAll(!skipSettings ? false : JSON.stringify(oldSettings) === JSON.stringify(state.settings));
             }
             
             // --- MODAL HANDLERS ---
@@ -1096,6 +1114,24 @@
                         toast.remove();
                     });
                 }, 3000); // 3 seconds visible
+            }
+            
+            // --- NEW: Clipboard Function ---
+            function copyToClipboard(text) {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast("Copied!", "Join link copied to clipboard.");
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    showToast("Error", "Could not copy link.");
+                }
             }
 
             // --- CLICK HANDLERS ---
@@ -1385,6 +1421,37 @@
                         videoPicker.classList.add('hidden');
                     }
                 });
+            }
+            
+            // --- NEW: Show participants list ---
+            function handleShowParticipants() {
+                if (!peer) return; // Not connected
+                
+                const users = Object.values(state.users);
+                if (users.length === 0) {
+                    showToast("No one is connected.", "");
+                    return;
+                }
+                
+                const userListHTML = users.map(user => 
+                    `<li class="text-gray-700 text-lg">${user} ${user === state.users[myPeerId] ? '(You)' : ''}</li>`
+                ).join('');
+                
+                showModal(
+                    'Live Participants',
+                    `<ul class="list-disc list-inside">${userListHTML}</ul>`,
+                    hideModal
+                );
+            }
+            
+            // --- NEW: Copy join link ---
+            function handleCopyJoinLink() {
+                if (!isHost || !myPeerId) {
+                    showToast("Error", "You are not hosting a session.");
+                    return;
+                }
+                const joinUrl = `${window.location.origin}${window.location.pathname}?join=${myPeerId}`;
+                copyToClipboard(joinUrl);
             }
 
             // --- DRAG-N-DROP LOGIC ---
@@ -1868,7 +1935,8 @@
                 peer.on('open', (id) => {
                     myPeerId = id;
                     state.users[myPeerId] = userName;
-                    setConnectionStatus('Waiting for peers...');
+                    // FIX: Wording change
+                    setConnectionStatus('Waiting for others...');
                     console.log('PeerJS Host ID:', id);
                     
                     const content = `
@@ -1907,8 +1975,10 @@
                     persistentQrContainer.classList.add('flex');
                     const persistentQrEl = document.getElementById('persistent-qr-code');
                     persistentQrEl.innerHTML = '';
+                    // NEW: Encode the full URL
+                    const joinUrl = `${window.location.origin}${window.location.pathname}?join=${id}`;
                     new QRCode(persistentQrEl, {
-                        text: id,
+                        text: joinUrl,
                         width: 48,
                         height: 48,
                         colorDark : "#000000",
@@ -1933,7 +2003,8 @@
                                    // 2. Password OK
                                    console.log('Peer authenticated:', conn.peer);
                                    connections.push(conn);
-                                   setConnectionStatus(`Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})`);
+                                   // FIX: Wording change
+                                   setConnectionStatus(`Live (${connections.length} other${connections.length > 1 ? 's' : ''})`);
                                    chatFab.style.display = 'flex';
                                    conn.send({ type: 'FULL_STATE', payload: state });
                                    
@@ -1958,7 +2029,8 @@
                     } else {
                         // No password, connect immediately
                         connections.push(conn);
-                        setConnectionStatus(`Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})`);
+                        // FIX: Wording change
+                        setConnectionStatus(`Live (${connections.length} other${connections.length > 1 ? 's' : ''})`);
                         chatFab.style.display = 'flex';
                         
                         conn.on('open', () => {
@@ -1977,7 +2049,9 @@
                     conn.on('close', () => {
                         connections = connections.filter(c => c.peer !== conn.peer);
                         delete state.users[conn.peer];
-                        setConnectionStatus(connections.length > 0 ? `Connected (${connections.length} peer${connections.length > 1 ? 's' : ''})` : 'Waiting for peers...');
+                        // FIX: Wording change
+                        const statusText = connections.length > 0 ? `Live (${connections.length} other${connections.length > 1 ? 's' : ''})` : 'Waiting for others...';
+                        setConnectionStatus(statusText);
                         if (connections.length === 0) {
                             persistentQrContainer.classList.add('hidden');
                             persistentQrContainer.classList.remove('flex');
@@ -2025,18 +2099,33 @@
             }
             
             function setConnectionStatus(status) {
-                connectionStatus.textContent = status;
-                mobileConnectionStatus.textContent = status;
+                // FIX: Wording change
+                const liveRegex = /Connected \((\d+) peer(s?)\)/;
+                let statusText = status;
+                if (status === 'Waiting for peers...') {
+                    statusText = 'Waiting for others...';
+                } else if (status === 'Connected (Client)') {
+                    statusText = 'Live (Client)';
+                } else if (liveRegex.test(status)) {
+                    const match = status.match(liveRegex);
+                    const count = match[1];
+                    const plural = count > 1 ? 's' : '';
+                    statusText = `Live (${count} other${plural})`;
+                }
+                
+                connectionStatus.textContent = statusText;
+                mobileConnectionStatus.textContent = statusText;
+                
                 if (status === 'Offline') {
-                    connectionStatus.className = 'text-sm text-gray-500';
+                    connectionStatus.className = 'text-sm text-gray-500 hover:text-indigo-600 transition-colors';
                     mobileConnectionStatus.className = 'text-sm text-gray-500 px-2';
                     persistentQrContainer.classList.add('hidden');
                     persistentQrContainer.classList.remove('flex');
-                } else if (status.startsWith('Connected')) {
-                    connectionStatus.className = 'text-sm text-green-600 font-medium';
+                } else if (statusText.startsWith('Live')) {
+                    connectionStatus.className = 'text-sm text-green-600 font-medium hover:text-green-800 transition-colors';
                     mobileConnectionStatus.className = 'text-sm text-green-600 font-medium px-2';
                 } else {
-                    connectionStatus.className = 'text-sm text-yellow-600';
+                    connectionStatus.className = 'text-sm text-yellow-600 hover:text-yellow-800 transition-colors';
                     mobileConnectionStatus.className = 'text-sm text-yellow-600 px-2';
                 }
             }
@@ -2060,7 +2149,20 @@
                         }
                         
                         localStorage.setItem('decomBoardUserName', userName);
-                        connectToHost(decodedText, userName);
+                        
+                        // NEW: Check if it's a URL or just an ID
+                        let hostId = decodedText;
+                        try {
+                            const url = new URL(decodedText);
+                            const id = url.searchParams.get('join');
+                            if (id) {
+                                hostId = id;
+                            }
+                        } catch (e) {
+                            // Not a URL, use the text directly
+                        }
+                        
+                        connectToHost(hostId, userName);
                         // Don't hide modal yet, connectToHost will
                     },
                     (errorMessage) => { /* console.log(errorMessage); */ } 
@@ -2115,7 +2217,6 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                             <input type="text" id="modal-user-name" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${savedName}">
                         </div>
-                        <!-- NEW: Hide QR scanner if joinId is present -->
                         <div id="qr-scanner-section" class="${joinId ? 'hidden' : ''}">
                             <p class="mb-4">Scan the QR code from the host's screen.</p>
                             <div id="qr-reader"></div>
@@ -2123,7 +2224,6 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Enter Host ID</label>
-                            <!-- NEW: Pre-fill ID if present -->
                             <input type="text" id="manual-peer-id" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2" value="${joinId || ''}">
                         </div>
                         <p id="peer-error" class="text-red-500 text-sm h-4 mt-2"></p>
@@ -2168,7 +2268,7 @@
                         if (data.type === 'FULL_STATE') {
                             // Auth success!
                             hideModal();
-                            setConnectionStatus('Connected (Client)');
+                            setConnectionStatus('Live (Client)');
                             chatFab.style.display = 'flex';
                             broadcast({ type: 'ANNOUNCE_USER', peerId: myPeerId, userName: userName });
                             
