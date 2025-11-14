@@ -81,29 +81,27 @@
             transform: translate(-50%, -50%);
             pointer-events: none;
 
-            /* --- FINAL "COVER" LOGIC (from Niilow) --- */
-            /* Start with a base size matching the screen width */
-            /* width: 100vw; */ /* <--- WRONG */
-            /* height: calc(100vw * 9 / 16); */ /* <--- WRONG */
-
-            /* If the screen is TALLER than 16:9 (e.g., mobile) */
-            /* this min-height will be larger than the height above */
-            /* and the min-width will be smaller than the width above. */
-            /* This will make the video fill the height. */
-            
-            /* --- THE FIX: Use DVH, not VH --- */
-            /* min-height: 100dvh; */ /* <--- WRONG */
-            /* min-width: calc(100dvh * 16 / 9); */ /* <--- WRONG */
-
             /* --- THE ACTUAL, REAL, NIILOW FIX --- */
             /* 1. Start by making the video fill the screen's HEIGHT */
-            height: 100dvh;
-            width: calc(100dvh * 16 / 9); /* (e.g., 1080dvh * 16/9 = 1920px width) */
+            /* height: 100dvh; */ /* <-- OLD */
+            /* width: calc(100dvh * 16 / 9); */ /* <-- OLD */
+            
+            /* --- NEW "OVERKILL" FILL --- */
+            /* Make it 15% taller than the screen */
+            height: 115dvh;
+            width: calc(115dvh * 16 / 9);
+            /* --- END NEW --- */
 
             /* 2. BUT if the screen is WIDER than 16:9... */
             /* ...make the video fill the WIDTH */
-            min-width: 100vw;
-            min-height: calc(100vw * 9 / 16); /* (e.g., 2560vw * 9/16 = 1440px height) */
+            /* min-width: 100vw; */ /* <-- OLD */
+            /* min-height: calc(100vw * 9 / 16); */ /* <-- OLD */
+            
+            /* --- NEW "OVERKILL" FILL --- */
+            /* Make it 15% wider than the screen */
+            min-width: 115vw;
+            min-height: calc(115vw * 9 / 16);
+            /* --- END NEW --- */
         }
         
         /* Style for the card being dragged */
