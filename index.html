@@ -51,9 +51,10 @@
             top: 0;
             left: 0;
             width: 100vw;
-            height: 100dvh;
+            height: 100dvh; /* FIX: Use 100dvh */
             z-index: -2; /* Behind everything */
             overflow: hidden;
+            background: #000; /* Fallback for video */
         }
         /* Dark overlay */
         #video-bg-container::before {
@@ -64,7 +65,6 @@
             z-index: -1;
         }
         
-        /* --- BUGFIX: Make video player div full-size --- */
         #video-bg-player {
             position: absolute;
             top: 0;
@@ -81,27 +81,14 @@
             transform: translate(-50%, -50%);
             pointer-events: none;
 
-            /* --- THE ACTUAL, REAL, NIILOW FIX --- */
-            /* 1. Start by making the video fill the screen's HEIGHT */
-            /* height: 100dvh; */ /* <-- OLD */
-            /* width: calc(100dvh * 16 / 9); */ /* <-- OLD */
+            /* --- The "Niilow" Cover Logic (FINAL) --- */
+            /* 1. Rule for TALL screens: Fill HEIGHT */
+            width: 178vh; /* 16:9 ratio based on height */
+            height: 100vh;
             
-            /* --- NEW "OVERKILL" FILL --- */
-            /* Make it 15% taller than the screen */
-            height: 115dvh;
-            width: calc(115dvh * 16 / 9);
-            /* --- END NEW --- */
-
-            /* 2. BUT if the screen is WIDER than 16:9... */
-            /* ...make the video fill the WIDTH */
-            /* min-width: 100vw; */ /* <-- OLD */
-            /* min-height: calc(100vw * 9 / 16); */ /* <-- OLD */
-            
-            /* --- NEW "OVERKILL" FILL --- */
-            /* Make it 15% wider than the screen */
-            min-width: 115vw;
-            min-height: calc(115vw * 9 / 16);
-            /* --- END NEW --- */
+            /* 2. Rule for WIDE screens: Fill WIDTH */
+            min-width: 100vw;
+            min-height: 56.25vw; /* 16:9 ratio based on width */
         }
         
         /* Style for the card being dragged */
@@ -400,7 +387,7 @@
             animation: bounce-right 1.5s ease-in-out infinite;
         }
         
-        /* --- BUGFIX: Card Land Animation --- */
+        /* NEW: Card Land Animation */
         @keyframes card-land {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -463,12 +450,10 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.293a1 1 0 011.414 0L9 7.586V15a1 1 0 11-2 0V7.586L5.707 8.707a1 1 0 01-1.414-1.414l3-3z" clip-rule="evenodd" /></svg>
                     </button>
                     <input type="file" id="file-input" accept=".mim">
-                    
-                    <!-- --- NEW QR CODE LOCATION --- -->
-                    <button id="persistent-qr-container-footer" class="hidden items-center gap-2 p-1 bg-white rounded-lg shadow" title="Copy Join Link">
+                    <!-- NEW: Persistent QR Code -->
+                    <button id="persistent-qr-container-footer" class="hidden items-center p-1 bg-white rounded-md border border-gray-300" title="Copy Join Link">
                         <div id="persistent-qr-code-footer" class="w-16 h-16"></div>
                     </button>
-                    <!-- --- END NEW QR CODE LOCATION --- -->
                 </div>
             </div>
 
@@ -478,12 +463,6 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
                     + Add New Card
                 </button>
-                <!-- NEW: Persistent QR Code (REMOVED FROM HERE) -->
-                <!-- 
-                <button id="persistent-qr-container" class="hidden items-center gap-2 p-2 ml-auto" title="Copy Join Link">
-                    <div id="persistent-qr-code" class="w-20 h-20"></div>
-                </button>
-                -->
             </div>
         </footer>
     </div>
@@ -617,9 +596,8 @@
             const chatInput = document.getElementById('chat-input');
             const chatSendBtn = document.getElementById('chat-send-btn');
             const clearChatBtn = document.getElementById('clear-chat-btn');
-            // NEW: Persistent QR
-            // const persistentQrContainer = document.getElementById('persistent-qr-container'); // OLD
-            const persistentQrContainerFooter = document.getElementById('persistent-qr-container-footer'); // NEW
+            // NEW: Persistent QR in footer
+            const persistentQrContainerFooter = document.getElementById('persistent-qr-container-footer');
             
             // --- Layout Toggles ---
             const layoutHorizontalBtn = document.getElementById('layout-horizontal-btn');
@@ -662,12 +640,9 @@
             
             // --- CORE FUNCTIONS ---
             function saveState() {
-                // localStorage.setItem('decomBoardState', JSON.stringify(state)); // OLD
-                
-                // --- BUGFIX: Don't save transient user list ---
-                const stateToSave = { ...state, users: {} }; // Clear users before saving
+                // FIX: Don't save users list
+                const stateToSave = { ...state, users: {} };
                 localStorage.setItem('decomBoardState', JSON.stringify(stateToSave));
-                // --- END BUGFIX ---
             }
             
             // NEW: Helper to convert hex to rgba
@@ -690,12 +665,7 @@
                 if (savedState) {
                     state = JSON.parse(savedState);
                     if (!state.chat) state.chat = [];
-                    // if (!state.users) state.users = {}; // OLD
-                    
-                    // --- BUGFIX: Always reset user list on load ---
-                    state.users = {}; 
-                    // --- END BUGFIX ---
-                    
+                    state.users = {}; // FIX: Always reset users list on load
                     if (!state.desktopLayout) state.desktopLayout = 'horizontal';
                     if (!state.settings) {
                         state.settings = { 
@@ -773,8 +743,9 @@
                         document.body.style.backgroundColor = '#111827'; // Dark fallback
                         loadVideoPlayer(newSettings.bgVideoId);
                     } else {
-                        document.body.style.backgroundColor = newSettings.backgroundColor || DEFAULT_BG_COLOR;
+                        // FIX: Stop video player when switching to color
                         stopVideoPlayer();
+                        document.body.style.backgroundColor = newSettings.backgroundColor || DEFAULT_BG_COLOR;
                     }
                 }
                 
@@ -784,8 +755,9 @@
                 
             }
             
-            // FIX: Added skipSettings flag and oldSettings parameter
+            // FIX: Added skipSettings and oldSettings flags
             function renderAll(skipSettings = false, oldSettings = {}) {
+                
                 if (!skipSettings) {
                     applySettings(oldSettings); // Use the passed-in oldSettings
                 }
@@ -1061,19 +1033,11 @@
                 // Layout Toggle Listeners
                 layoutHorizontalBtn.onclick = () => {
                     state.desktopLayout = 'horizontal';
-                    // saveAndRenderLocally(true); // OLD
-                    // --- NEW ---
-                    const action = { type: 'LAYOUT_CHANGE' }; // A dummy action
-                    submitAction(action);
-                    // --- END NEW ---
+                    saveAndRenderLocally(true); // skip settings
                 };
                 layoutVerticalBtn.onclick = () => {
                     state.desktopLayout = 'vertical';
-                    // saveAndRenderLocally(true); // OLD
-                    // --- NEW ---
-                    const action = { type: 'LAYOUT_CHANGE' }; // A dummy action
-                    submitAction(action);
-                    // --- END NEW ---
+                    saveAndRenderLocally(true); // skip settings
                 };
                 
                 // NEW: Participant list listener
@@ -1081,8 +1045,7 @@
                 mobileConnectionStatus.onclick = handleShowParticipants;
                 
                 // NEW: QR Code Copy listener
-                // persistentQrContainer.onclick = handleCopyJoinLink; // OLD
-                persistentQrContainerFooter.onclick = handleCopyJoinLink; // NEW
+                persistentQrContainerFooter.onclick = handleCopyJoinLink;
             }
             
             function handleAppClick(e) {
@@ -1110,10 +1073,8 @@
             }
             
             function saveAndRenderLocally(skipSettings = false, oldSettings = {}) {
-                // const oldSettings = JSON.parse(JSON.stringify(state.settings)); // Deep copy // OLD
                 saveState();
-                // renderAll(!skipSettings ? false : JSON.stringify(oldSettings) === JSON.stringify(state.settings)); // OLD
-                renderAll(skipSettings, oldSettings); // NEW
+                renderAll(skipSettings, oldSettings);
             }
             
             // --- MODAL HANDLERS ---
@@ -1458,9 +1419,10 @@
                 const opacitySlider = document.getElementById('opacity-slider');
                 opacitySlider.addEventListener('input', (e) => {
                     const newOpacity = parseFloat(e.target.value);
+                    const oldSettings = JSON.parse(JSON.stringify(state.settings));
                     // This is a UI-only change for now, will be saved on confirm
                     state.settings.sectionOpacity = newOpacity;
-                    renderAll(true, {}); // Re-render but skip settings logic
+                    renderAll(true, oldSettings); // Re-render but skip settings
                 });
                 
                 // Add listener to toggle
@@ -1499,7 +1461,7 @@
                 }
                 
                 const userListHTML = users.map(user => 
-                    `<li class="text-gray-700 text-lg">${user} ${state.users[myPeerId] && user === state.users[myPeerId] ? '(You)' : ''}</li>`
+                    `<li class="text-gray-700 text-lg">${user} ${user === state.users[myPeerId] ? '(You)' : ''}</li>`
                 ).join('');
                 
                 showModal(
@@ -1622,8 +1584,6 @@
                     dropZone.insertBefore(placeholder, afterElement);
                 }
             }
-            
-            // --- BUGFIX: Card Land Animation ---
             function handleDrop(e) {
                 e.preventDefault();
                 if (!draggedCardId) return; // Only handle card drops
@@ -1757,7 +1717,7 @@
             }
 
             // --- ACTION HANDLERS ---
-            // --- BUGFIX: Background Switch ---
+            // FIX: handleAction now returns a bool if settings changed
             function handleAction(action) {
                 console.log('Handling action:', action);
                 let settingsChanged = false;
@@ -1812,9 +1772,8 @@
                     case 'CLEAR_CHAT':
                         state.chat = [];
                         renderChat();
-                        return settingsChanged; // Return false
-                    // --- BUGFIX: Duplicate Participants ---
-                    case 'DELETE_USER':
+                        return settingsChanged;
+                    case 'DELETE_USER': // FIX: Handle user deletion
                         delete state.users[action.peerId];
                         renderChat();
                         return settingsChanged; // Return false
@@ -1825,25 +1784,19 @@
                             settingsChanged = true;
                         }
                         break; 
-                    case 'LAYOUT_CHANGE':
-                        // This is a dummy action, does nothing to state
-                        // but ensures the render function runs
-                        break;
                 }
                 
-                // saveAndRenderLocally(!settingsChanged); // <-- GONE
                 return settingsChanged; // <-- NEW
             }
 
-            // --- BUGFIX: Background Switch ---
+            // FIX: submitAction now captures old settings
             function submitAction(action) {
                 const oldSettings = JSON.parse(JSON.stringify(state.settings)); // CAPTURE
                 
                 if (isHost || !peer) { // If host OR offline
                     const settingsChanged = handleAction(action); // Mutates state, returns bool
                     
-                    saveState(); // Do this part...
-                    renderAll(action.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings); // ...and this part manually
+                    saveAndRenderLocally(!settingsChanged, oldSettings);
                     
                     if (isHost) broadcast(action);
                 } else { // If client
@@ -1897,7 +1850,6 @@
                 }
             });
             
-            // --- BUGFIX: Background Switch ---
             function loadMimFile(file) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -1906,7 +1858,7 @@
                         if (newState && newState.sections && newState.cards) {
                             state = newState;
                             if (!state.chat) state.chat = [];
-                            if (!state.users) state.users = {};
+                            state.users = {}; // FIX: Reset users on load
                             if (!state.desktopLayout) state.desktopLayout = 'horizontal';
                             if (!state.settings) state.settings = { 
                                 backgroundType: 'color', 
@@ -1916,12 +1868,8 @@
                                 sessionPassword: null
                             };
                             
-                            // saveAndRenderLocally(); // OLD
-                            
-                            // --- NEW ---
-                            applySettings(); // Apply new settings from file
-                            saveAndRenderLocally(true, {}); // Re-render, but *skip* settings logic
-                            // --- END NEW ---
+                            applySettings(); // Apply new settings
+                            saveAndRenderLocally(true); // Re-render, skip settings
                             
                             if (isHost) {
                                 broadcast({ type: 'FULL_STATE', payload: state });
@@ -1977,6 +1925,7 @@
                 // FIX: Check if player exists and is playing the right video
                 if (ytPlayer && typeof ytPlayer.getVideoData === 'function' && ytPlayer.getVideoData().video_id === videoId) {
                     console.log('Video already playing.');
+                    ytPlayer.playVideo(); // Ensure it's playing
                     return; // Don't reload
                 }
                 
@@ -2013,7 +1962,7 @@
             function stopVideoPlayer() {
                 if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
                     ytPlayer.stopVideo();
-                    ytPlayer.destroy();
+                    ytPlayer.destroy(); // Destroy to free resources
                     ytPlayer = null;
                 }
                 const container = document.getElementById('video-bg-container');
@@ -2072,22 +2021,16 @@
                     });
                     
                     // NEW: Show persistent QR code
-                    // persistentQrContainer.classList.remove('hidden'); // OLD
-                    // persistentQrContainer.classList.add('flex'); // OLD
-                    // const persistentQrEl = document.getElementById('persistent-qr-code'); // OLD
-                    persistentQrContainerFooter.classList.remove('hidden'); // NEW
-                    persistentQrContainerFooter.classList.add('flex'); // NEW
-                    const persistentQrEl = document.getElementById('persistent-qr-code-footer'); // NEW
-                    
+                    persistentQrContainerFooter.classList.remove('hidden');
+                    persistentQrContainerFooter.classList.add('flex');
+                    const persistentQrEl = document.getElementById('persistent-qr-code-footer');
                     persistentQrEl.innerHTML = '';
                     // NEW: Encode the full URL
                     const joinUrl = `${window.location.origin}${window.location.pathname}?join=${id}`;
                     new QRCode(persistentQrEl, {
                         text: joinUrl,
-                        // width: 80, // OLD
-                        // height: 80, // OLD
-                        width: 64, // NEW
-                        height: 64, // NEW
+                        width: 64, // 16 * 4
+                        height: 64, // 16 * 4
                         colorDark : "#000000",
                         colorLight : "#ffffff",
                         correctLevel : QRCode.CorrectLevel.M // Lower res for small size
@@ -2117,16 +2060,12 @@
                                    
                                    // Now set up normal listeners
                                    conn.on('data', (data) => {
+                                        const oldSettings = JSON.parse(JSON.stringify(state.settings));
                                         if (data.type === 'ANNOUNCE_USER') {
                                             state.users[data.peerId] = data.userName;
                                         }
-                                        // handleAction(data); // OLD
-                                        // --- NEW ---
-                                        const oldSettings = JSON.parse(JSON.stringify(state.settings));
                                         const settingsChanged = handleAction(data);
-                                        saveState();
-                                        renderAll(data.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings);
-                                        // --- END NEW ---
+                                        saveAndRenderLocally(!settingsChanged, oldSettings);
                                         broadcast(data); 
                                     });
                                     
@@ -2151,39 +2090,29 @@
                         });
                         
                         conn.on('data', (data) => {
+                            const oldSettings = JSON.parse(JSON.stringify(state.settings));
                             if (data.type === 'ANNOUNCE_USER') {
                                 state.users[data.peerId] = data.userName;
                             }
-                            // handleAction(data); // OLD
-                            // --- NEW ---
-                            const oldSettings = JSON.parse(JSON.stringify(state.settings));
                             const settingsChanged = handleAction(data);
-                            saveState();
-                            renderAll(data.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings);
-                            // --- END NEW ---
+                            saveAndRenderLocally(!settingsChanged, oldSettings);
                             broadcast(data); 
                         });
                     }
                     
-                    // --- BUGFIX: Duplicate Participants ---
                     conn.on('close', () => {
                         connections = connections.filter(c => c.peer !== conn.peer);
-                        // delete state.users[conn.peer]; // <-- OLD
-                        
-                        // --- NEW ---
+                        // FIX: Broadcast user deletion
                         const action = { type: 'DELETE_USER', peerId: conn.peer };
                         handleAction(action); // Host updates its own state
                         broadcast(action); // Tell everyone else
-                        // --- END NEW ---
                         
                         // FIX: Wording change
                         const statusText = connections.length > 0 ? `Live (${connections.length} other${connections.length > 1 ? 's' : ''})` : 'Waiting for others...';
                         setConnectionStatus(statusText);
                         if (connections.length === 0) {
-                            // persistentQrContainer.classList.add('hidden'); // OLD
-                            // persistentQrContainer.classList.remove('flex'); // OLD
-                            persistentQrContainerFooter.classList.add('hidden'); // NEW
-                            persistentQrContainerFooter.classList.remove('flex'); // NEW
+                            persistentQrContainerFooter.classList.add('hidden');
+                            persistentQrContainerFooter.classList.remove('flex');
                         }
                     });
                 });
@@ -2248,10 +2177,8 @@
                 if (status === 'Offline') {
                     connectionStatus.className = 'text-sm text-gray-500 hover:text-indigo-600 transition-colors';
                     mobileConnectionStatus.className = 'text-sm text-gray-500 px-2';
-                    // persistentQrContainer.classList.add('hidden'); // OLD
-                    // persistentQrContainer.classList.remove('flex'); // OLD
-                    persistentQrContainerFooter.classList.add('hidden'); // NEW
-                    persistentQrContainerFooter.classList.remove('flex'); // NEW
+                    persistentQrContainerFooter.classList.add('hidden');
+                    persistentQrContainerFooter.classList.remove('flex');
                 } else if (statusText.startsWith('Live')) {
                     connectionStatus.className = 'text-sm text-green-600 font-medium hover:text-green-800 transition-colors';
                     mobileConnectionStatus.className = 'text-sm text-green-600 font-medium px-2';
@@ -2379,11 +2306,6 @@
                 
                 peer.on('open', (id) => {
                     myPeerId = id;
-                    
-                    // --- BUGFIX: Add self to local user list ---
-                    state.users[myPeerId] = userName; 
-                    // --- END BUGFIX ---
-                    
                     console.log('Client Peer ID:', id, 'connecting to', hostId);
                     setConnectionStatus('Connecting...');
                     
@@ -2395,7 +2317,6 @@
                         // Don't set status yet, wait for handshake
                     });
                     
-                    // --- BUGFIX: Background Switch ---
                     conn.on('data', (data) => {
                         console.log('Client received data:', data);
                         if (data.type === 'FULL_STATE') {
@@ -2405,17 +2326,13 @@
                             chatFab.style.display = 'flex';
                             broadcast({ type: 'ANNOUNCE_USER', peerId: myPeerId, userName: userName });
                             
+                            const oldSettings = JSON.parse(JSON.stringify(state.settings));
                             state = data.payload;
-                            
-                            // --- BUGFIX: Re-add self after host state override ---
-                            state.users[myPeerId] = userName; 
-                            // --- END BUGFIX ---
-                            
-                            // saveAndRenderLocally(); // OLD
-                            // --- NEW ---
-                            applySettings();
-                            saveAndRenderLocally(true, {});
-                            // --- END NEW ---
+                            // FIX: Client must also reset users list
+                            state.users = {};
+                            state.users[myPeerId] = userName; // Add self
+                            applySettings(oldSettings); // Apply new settings, comparing to old
+                            saveAndRenderLocally(true, oldSettings); // Render, skip settings
                         } else if (data.type === 'PASSWORD_REQUIRED') {
                             // Host needs a password
                             hideModal(); // Hide the join modal
@@ -2439,14 +2356,10 @@
                                 console.error("Auth failed, modal context lost.");
                             }
                         } else {
-                            // handleAction(data); // <-- OLD
-                            
-                            // --- NEW ---
+                            // FIX: Client handles incoming actions
                             const oldSettings = JSON.parse(JSON.stringify(state.settings));
                             const settingsChanged = handleAction(data);
-                            saveState();
-                            renderAll(data.type === 'LAYOUT_CHANGE' ? true : !settingsChanged, oldSettings);
-                            // --- END NEW ---
+                            saveAndRenderLocally(!settingsChanged, oldSettings);
                         }
                     });
                     
@@ -2495,10 +2408,8 @@
 
             // --- INITIALIZATION ---
             loadState();
-            // renderAll(); // OLD
-            renderAll(true, {}); // --- BUGFIX: Background Switch ---
-            // window.onresize = renderAll; // OLD
-            window.onresize = () => renderAll(true, {}); // --- BUGFIX: Background Switch ---
+            renderAll(true); // Skip settings on initial load
+            window.onresize = () => renderAll(true); // Skip settings on resize
             
             // NEW: Check for URL join param
             const urlParams = new URLSearchParams(window.location.search);
