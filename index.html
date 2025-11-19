@@ -73,22 +73,35 @@
             height: 100%;
         }
         
-        /* FIX: Target the iframe created by the API */
+        /* FIX: Robust Fullscreen Video Background */
         #video-bg-player iframe {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
-
-            /* --- The "Niilow" Cover Logic (FINAL) --- */
-            /* 1. Rule for TALL screens: Fill HEIGHT */
-            width: 178vh; /* 16:9 ratio based on height */
-            height: 100vh;
             
-            /* 2. Rule for WIDE screens: Fill WIDTH */
-            min-width: 100vw;
-            min-height: 56.25vw; /* 16:9 ratio based on width */
+            /* Default fallback logic */
+            width: 100vw;
+            height: 56.25vw; /* 16:9 ratio */
+            min-height: 100vh;
+            min-width: 177.77vh;
+        }
+
+        /* If the screen is WIDER than 16:9 (Ultrawide monitors) */
+        @media (min-aspect-ratio: 16/9) {
+            #video-bg-player iframe {
+                height: 56.25vw; 
+                width: 100vw;
+            }
+        }
+
+        /* If the screen is TALLER than 16:9 (Mobile/Tablets) */
+        @media (max-aspect-ratio: 16/9) {
+            #video-bg-player iframe {
+                width: 177.78vh; 
+                height: 100vh;
+            }
         }
         
         /* Style for the card being dragged */
@@ -550,6 +563,9 @@
     <!-- FIX: Swapped to the reliable qrcode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+    <!-- FIX: Added Mobile Drag Polyfill -->
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js" defer></script>
+
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js" defer></script>
     <!-- NEW: YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api" defer></script>
@@ -559,6 +575,22 @@
         // FIX: Wrap all code in DOMContentLoaded listener
         window.addEventListener('DOMContentLoaded', (event) => {
     
+            // --- FIX: Initialize Mobile Drag Polyfill ---
+            // This makes drag and drop work on phones!
+            // Check if library loaded correctly
+            if (typeof MobileDragDrop !== 'undefined') {
+                var polyfillOptions = {
+                    // This stops the page from scrolling while you drag a card
+                    dragImageTranslateOverride: (MobileDragDrop.scrollBehaviour && MobileDragDrop.scrollBehaviour.dragImageTranslateOverride) 
+                };
+                MobileDragDrop.polyfill(polyfillOptions);
+            } else {
+                console.warn("MobileDragDrop library not loaded.");
+            }
+
+            // Fix for iOS scroll behavior
+            window.addEventListener( 'touchmove', function() {}, {passive: false});
+
             // --- STATE MANAGEMENT ---
             const boardContainer = document.getElementById('board-container');
             // FIX: Renamed stagingArea
