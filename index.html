@@ -19,6 +19,7 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
+                        hand: ['Kalam', 'cursive'], // New font for stickies
                     },
                     colors: {
                         // 'kanban-bg': '#3498db', // This will be set by JS
@@ -30,10 +31,10 @@
             }
         }
     </script>
-    <!-- 8. Get the "Inter" font -->
+    <!-- 8. Get the "Inter" font and "Kalam" for handwriting style -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
 
     <!-- 9. All our custom styles -->
     <style>
@@ -410,6 +411,65 @@
             animation: card-land 0.3s ease-out;
         }
 
+        /* --- NEW: Sticky Note Styles --- */
+        #sticky-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 50; /* Above board, below chat/modals */
+        }
+        .sticky-note {
+            position: absolute;
+            width: 160px; min-height: 160px;
+            padding: 1rem;
+            background-color: #fef3c7; /* Default yellow */
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.2);
+            transform: rotate(-2deg);
+            cursor: grab;
+            pointer-events: auto; /* Enable interaction */
+            transition: transform 0.1s, box-shadow 0.1s;
+            font-family: 'Kalam', cursive;
+            display: flex; flex-direction: column;
+            border-radius: 2px;
+        }
+        .sticky-note:active { 
+            cursor: grabbing; 
+            transform: scale(1.05) rotate(0deg); 
+            box-shadow: 10px 10px 25px rgba(0,0,0,0.3);
+            z-index: 60; 
+        }
+        .sticky-textarea { 
+            flex: 1; 
+            background: transparent; 
+            border: none; 
+            resize: none; 
+            outline: none; 
+            width: 100%; 
+            height: 100%;
+            font-family: inherit;
+            font-size: 1.1rem;
+            color: #4b5563;
+            overflow: hidden;
+        }
+        .sticky-delete-btn {
+            position: absolute; top: -8px; right: -8px;
+            width: 24px; height: 24px;
+            background-color: #ef4444; color: white;
+            border-radius: 50%; font-size: 14px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0; transition: opacity 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .sticky-note:hover .sticky-delete-btn { opacity: 1; }
+        
+        /* Cursor for sticky mode */
+        body.sticky-mode-active {
+            cursor: crosshair;
+        }
+        #sticky-toggle-btn.active {
+            background-color: #fef3c7;
+            color: #d97706;
+            border: 2px solid #d97706;
+        }
+
     </style>
 </head>
 <!-- NEW: Background color will be set by JS -->
@@ -419,6 +479,9 @@
     <div id="video-bg-container">
         <div id="video-bg-player"></div>
     </div>
+    
+    <!-- NEW: Sticky Note Layer -->
+    <div id="sticky-layer"></div>
 
     <!-- =========== DESKTOP UI =========== -->
     <div id="desktop-ui">
@@ -448,6 +511,11 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="8" x2="21" y2="8"></line><line x1="3"Y" x2="21" y2="16"></line></svg>
                         </button>
                     </div>
+
+                    <!-- NEW: Sticky Toggle Button -->
+                    <button id="sticky-toggle-btn" title="Sticky Note Mode (Double click bg to add)" class="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    </button>
 
                     <!-- NEW: Settings Button -->
                     <button id="settings-btn" title="Settings" class="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200">
@@ -635,6 +703,10 @@
             const layoutHorizontalBtn = document.getElementById('layout-horizontal-btn');
             const layoutVerticalBtn = document.getElementById('layout-vertical-btn');
             
+            // --- Sticky UI ---
+            const stickyToggleBtn = document.getElementById('sticky-toggle-btn');
+            const stickyLayer = document.getElementById('sticky-layer');
+            
             // --- Toast Container ---
             const toastContainer = document.getElementById('toast-container');
             
@@ -645,6 +717,8 @@
                 sections: [],
                 cards: [],
                 chat: [],
+                // NEW: Sticky Notes Array
+                stickies: [],
                 users: {}, // Map of peerId -> userName
                 settings: { // NEW
                     backgroundType: 'color', // 'color' or 'video'
@@ -655,6 +729,9 @@
                 },
                 desktopLayout: 'horizontal'
             };
+            
+            // UI State (Local)
+            let isStickyMode = false;
             
             let onModalConfirm = null;
             let quillEditor = null;
@@ -699,6 +776,7 @@
                     if (!state.chat) state.chat = [];
                     state.users = {}; // FIX: Always reset users list on load
                     if (!state.desktopLayout) state.desktopLayout = 'horizontal';
+                    if (!state.stickies) state.stickies = []; // Init stickies
                     if (!state.settings) {
                         state.settings = { 
                             backgroundType: 'color', 
@@ -749,6 +827,7 @@
                         sections: [],
                         cards: [],
                         chat: [],
+                        stickies: [],
                         users: {},
                         settings: { 
                             backgroundType: 'color', 
@@ -801,6 +880,7 @@
                     renderDesktopUI();
                 }
                 renderChat();
+                renderStickies(); // NEW: Render Sticky Notes
                 attachEventListeners();
             }
             
@@ -915,6 +995,60 @@
                 const opacity = state.settings.sectionOpacity || 1;
                 mobileDeckToggle.style.backgroundColor = hexToRgba('#ffffff', opacity);
                 mobileDeckDrawer.style.backgroundColor = hexToRgba('#e5e7eb', opacity);
+            }
+            
+            // --- NEW: Render Sticky Notes ---
+            function renderStickies() {
+                stickyLayer.innerHTML = '';
+                
+                state.stickies.forEach(sticky => {
+                    const stickyEl = document.createElement('div');
+                    stickyEl.className = 'sticky-note';
+                    stickyEl.id = sticky.id;
+                    stickyEl.style.left = sticky.x + 'px';
+                    stickyEl.style.top = sticky.y + 'px';
+                    stickyEl.style.backgroundColor = sticky.color;
+                    
+                    stickyEl.innerHTML = `
+                        <textarea class="sticky-textarea" placeholder="Type here...">${sticky.text}</textarea>
+                        <div class="sticky-delete-btn" title="Delete Sticky">×</div>
+                    `;
+                    
+                    // Event listeners for this sticky
+                    const textarea = stickyEl.querySelector('.sticky-textarea');
+                    const deleteBtn = stickyEl.querySelector('.sticky-delete-btn');
+                    
+                    // Update text on blur
+                    textarea.addEventListener('blur', () => {
+                        if (sticky.text !== textarea.value) {
+                             const action = { 
+                                 type: 'UPDATE_STICKY', 
+                                 stickyId: sticky.id, 
+                                 text: textarea.value, 
+                                 x: sticky.x, 
+                                 y: sticky.y 
+                            };
+                            submitAction(action);
+                        }
+                    });
+                    
+                    // Prevent drag when typing
+                    textarea.addEventListener('mousedown', (e) => e.stopPropagation());
+                    textarea.addEventListener('touchstart', (e) => e.stopPropagation());
+                    
+                    // Delete
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const action = { type: 'DELETE_STICKY', stickyId: sticky.id };
+                        submitAction(action);
+                    });
+                    
+                    // Setup Drag for Sticky
+                    stickyEl.addEventListener('mousedown', (e) => handleStickyDragStart(e, stickyEl, sticky));
+                    stickyEl.addEventListener('touchstart', (e) => handleStickyDragStart(e, stickyEl, sticky));
+
+                    stickyLayer.appendChild(stickyEl);
+                });
             }
             
             function createSectionElement(section) {
@@ -1078,8 +1212,100 @@
                 
                 // NEW: QR Code Copy listener
                 persistentQrContainerFooter.onclick = handleCopyJoinLink;
+                
+                // NEW: Sticky Mode Logic
+                stickyToggleBtn.onclick = toggleStickyMode;
+                document.body.addEventListener('dblclick', handleBackgroundDoubleClick);
             }
             
+            // --- NEW: Sticky Note Handlers ---
+            function toggleStickyMode() {
+                isStickyMode = !isStickyMode;
+                if (isStickyMode) {
+                    stickyToggleBtn.classList.add('active');
+                    document.body.classList.add('sticky-mode-active');
+                    showToast("Sticky Mode ON", "Double-click anywhere to add a note.");
+                } else {
+                    stickyToggleBtn.classList.remove('active');
+                    document.body.classList.remove('sticky-mode-active');
+                }
+            }
+            
+            function handleBackgroundDoubleClick(e) {
+                if (!isStickyMode) return;
+                
+                // Ignore double clicks on interactive elements
+                if (e.target.closest('.kanban-card') || 
+                    e.target.closest('.kanban-section') || 
+                    e.target.closest('button') || 
+                    e.target.closest('input') ||
+                    e.target.closest('.sticky-note')) {
+                    return;
+                }
+                
+                const x = e.clientX;
+                const y = e.clientY;
+                const newSticky = {
+                    id: `sticky-${Date.now()}`,
+                    text: '',
+                    x: x,
+                    y: y,
+                    color: '#fef3c7'
+                };
+                
+                const action = { type: 'ADD_STICKY', sticky: newSticky };
+                submitAction(action);
+            }
+            
+            function handleStickyDragStart(e, stickyEl, stickyData) {
+                const startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                const startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                const initialLeft = parseInt(stickyEl.style.left || 0);
+                const initialTop = parseInt(stickyEl.style.top || 0);
+                
+                let newX = initialLeft;
+                let newY = initialTop;
+                
+                function moveHandler(moveEvent) {
+                    moveEvent.preventDefault(); // Stop scroll
+                    const currentX = moveEvent.type === 'touchmove' ? moveEvent.touches[0].clientX : moveEvent.clientX;
+                    const currentY = moveEvent.type === 'touchmove' ? moveEvent.touches[0].clientY : moveEvent.clientY;
+                    
+                    const deltaX = currentX - startX;
+                    const deltaY = currentY - startY;
+                    
+                    newX = initialLeft + deltaX;
+                    newY = initialTop + deltaY;
+                    
+                    stickyEl.style.left = `${newX}px`;
+                    stickyEl.style.top = `${newY}px`;
+                }
+                
+                function upHandler() {
+                    document.removeEventListener('mousemove', moveHandler);
+                    document.removeEventListener('mouseup', upHandler);
+                    document.removeEventListener('touchmove', moveHandler);
+                    document.removeEventListener('touchend', upHandler);
+                    
+                    // Save new position if moved
+                    if (newX !== initialLeft || newY !== initialTop) {
+                        const action = {
+                            type: 'UPDATE_STICKY',
+                            stickyId: stickyData.id,
+                            text: stickyData.text, // Keep existing text
+                            x: newX,
+                            y: newY
+                        };
+                        submitAction(action);
+                    }
+                }
+                
+                document.addEventListener('mousemove', moveHandler);
+                document.addEventListener('mouseup', upHandler);
+                document.addEventListener('touchmove', moveHandler, { passive: false });
+                document.addEventListener('touchend', upHandler);
+            }
+
             function handleAppClick(e) {
                 const deleteCardBtn = e.target.closest('.delete-card-btn');
                 if (deleteCardBtn) {
@@ -1816,6 +2042,18 @@
                             settingsChanged = true;
                         }
                         break; 
+                    case 'ADD_STICKY':
+                        state.stickies.push(action.sticky);
+                        renderStickies(); // Specific render for performance
+                        return false;
+                    case 'UPDATE_STICKY':
+                        state.stickies = state.stickies.map(s => s.id === action.stickyId ? { ...s, text: action.text, x: action.x, y: action.y } : s);
+                        renderStickies();
+                        return false;
+                    case 'DELETE_STICKY':
+                        state.stickies = state.stickies.filter(s => s.id !== action.stickyId);
+                        renderStickies();
+                        return false;
                 }
                 
                 return settingsChanged; // <-- NEW
